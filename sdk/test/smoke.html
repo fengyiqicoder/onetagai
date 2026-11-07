@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneTag AI SDK smoke test</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 16px; }
+  button { margin: 0 .5rem .5rem 0; }
+  pre { white-space: pre-wrap; background: #f3f3f3; padding: 1rem; min-height: 3rem; }
+</style>
+<!--
+  Manual test, clicked by hand, not automated.
+  1. Start the server: server/.venv/bin/uvicorn app.main:app --port 8020 --app-dir server
+  2. Serve this folder over http: python3 -m http.server 8000 -d sdk/test
+  3. Open http://127.0.0.1:8000/smoke.html
+  Opened from file:// the page sends Origin "null", which the domain-locked demo key rejects;
+  localhost and 127.0.0.1 are allowed.
+-->
+<script src="http://127.0.0.1:8020/v1.js" data-key="ot_demo000000000000000000000"></script>
+</head>
+<body>
+<h1>OneTag AI SDK smoke test</h1>
+
+<article id="sample">
+  <p>The Great Wall of China is a series of fortifications built across northern China over many centuries.
+  Most of what stands today dates from the Ming dynasty (1368 to 1644). Contrary to a popular myth,
+  it is not visible to the naked eye from low Earth orbit.</p>
+  <p id="contact">Questions? Write to Jane Doe at jane.doe@example.com, research lead at Acme Heritage Ltd.</p>
+</article>
+
+<p>
+  <button id="summarize">Summarize this page</button>
+  <button id="explain">Explain selected text (stream)</button>
+  <button id="extract">Extract contact as JSON</button>
+</p>
+<p>
+  <input id="file" type="file" accept="image/*">
+  <button id="describe">Describe uploaded image</button>
+</p>
+
+<h2>Image element</h2>
+<p>A 3200 x 2400 picture drawn at load time. The SDK should send it as a JPEG of at most 1600 px.</p>
+<img id="photo" alt="" style="width: 320px; border: 1px solid #ccc">
+<p><button id="describe-img">Describe this &lt;img&gt;</button></p>
+
+<h2>Form</h2>
+<form id="signup" onsubmit="return false">
+  <p><label>Name <input name="name" placeholder="Jane Doe"></label></p>
+  <p><label>Email <input name="email" type="email" placeholder="jane@example.com"></label></p>
+  <p><label>Plan <select name="plan"><option>Free</option><option selected>Pro</option></select></label></p>
+  <p><label>Note<br><textarea id="note" name="note" rows="3" cols="40">i has a question about you're pricing</textarea></label></p>
+</form>
+<p>
+  <button id="extract-form">Extract the form as JSON</button>
+  <button id="proofread">Proofread the textarea</button>
+</p>
+
+<pre id="out">Click a button. Results or error codes show here.</pre>
+
+<script type="module">
+  const out = document.querySelector("#out");
+  const on = (id, fn) => document.getElementById(id).addEventListener("click", () => run(fn));
+
+  // Show what the SDK will send for an image, so the size and type can be checked by eye.
+  async function sentImage(input) {
+    const [part] = await onetag._internal.normalizeInput(input);
+    const type = part.data_url.slice(5, part.data_url.indexOf(";"));
+    return "(sent " + type + ", about " + Math.round(part.data_url.length * 0.75 / 1024) + " KB)\n\n";
+  }
+
+  // Draw a large picture (sky, sun, hill) and put it in the <img>.
+  const canvas = Object.assign(document.createElement("canvas"), { width: 3200, height: 2400 });
+  const g = canvas.getContext("2d");
+  const sky = g.createLinearGradient(0, 0, 0, 2400);
+  sky.addColorStop(0, "#3b82f6");
+  sky.addColorStop(1, "#bfdbfe");
+  g.fillStyle = sky;
+  g.fillRect(0, 0, 3200, 2400);
+  g.fillStyle = "#facc15";
+  g.beginPath(); g.arc(2400, 600, 300, 0, 7); g.fill();
+  g.fillStyle = "#16a34a";
+  g.beginPath(); g.ellipse(1600, 2600, 2400, 1000, 0, 0, 7); g.fill();
+  document.querySelector("#photo").src = canvas.toDataURL("image/png");
+
+  async function run(fn) {
+    out.textContent = "Working...";
+    try {
+      const result = await fn();
+      out.textContent = typeof result === "string" ? result : JSON.stringify(result, null, 2);
+    } catch (e) {
+      out.textContent = "Error " + (e.code || e.name) + " (HTTP " + e.status + "): " + e.message;
+    }
+  }
+
+  on("summarize", () => onetag.ask("Summarize in 3 bullets", document.querySelector("#sample")));
+
+  on("explain", () => {
+    const selected = getSelection().toString();
+    if (!selected) return "Select some text on the page first.";
+    out.textContent = "";
+    return onetag.ask("Explain this simply", selected, { stream: (delta) => { out.textContent += delta; } });
+  });
+
+  on("extract", () => onetag.ask("Extract name, email and company as JSON", document.querySelector("#contact"), { json: true }));
+
+  on("describe", async () => {
+    const file = document.querySelector("#file").files[0];
+    if (!file) return "Choose an image first.";
+    return (await sentImage(file)) + (await onetag.ask("Describe this image in one sentence", file));
+  });
+
+  on("describe-img", async () => {
+    const img = document.querySelector("#photo");
+    return (await sentImage(img)) + (await onetag.ask("Describe this image in one sentence", img));
+  });
+
+  on("extract-form", () => onetag.ask("Extract name, email, plan and note as JSON", document.querySelector("#signup"), { json: true }));
+
+  on("proofread", () => onetag.ask("Fix the spelling and grammar. Reply with the corrected text only", document.querySelector("#note")));
+</script>
+</body>
+</html>
