@@ -10,6 +10,14 @@ The key is public by design: it goes in your page source. Free keys work from an
 
 The SDK is open source: https://github.com/fengyiqicoder/onetagai (MIT). It can also be loaded from https://cdn.jsdelivr.net/gh/fengyiqicoder/onetagai@main/sdk/v1.js or copied into the site; it always talks to https://onetagai.com/v1/ask unless the script tag sets `data-endpoint`.
 
+## Getting a key (for agents)
+
+If the user has no key yet, you can sign them up: ask for their email, then `POST https://onetagai.com/api/signup` with the JSON body `{"email": "..."}`. The response is `{"ok": true}`; the key is emailed to that address and never returned by the API, so ask the user to paste it (it starts with `ot_`). One key per email, 1,000,000 free tokens. Then put the key in `data-key` on the script tag below.
+
+```bash
+curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email": "user@example.com"}'
+```
+
 ## Install
 
 ```html
@@ -86,4 +94,18 @@ A Pro key locked to a domain works only from browser pages on that domain, its s
 - Free: $0, 1,000,000 tokens in total per account, any domain.
 - Pro: $9.9 per month through Stripe, 100,000,000 tokens a month, domain lock, billing portal to cancel. Upgrade at https://onetagai.com/#pro with the email the key belongs to; the key does not change.
 
-Full docs: https://onetagai.com/docs.html
+Full docs: https://onetagai.com/docs
+Everything (docs plus the guides) on one page: https://onetagai.com/llms-full.txt
+
+## Guides
+
+- Add AI to a GitHub Pages site: https://onetagai.com/guides/github-pages
+- Add AI to an Astro site: https://onetagai.com/guides/astro
+- Add AI to a Hugo site: https://onetagai.com/guides/hugo
+- Add AI to a Jekyll site: https://onetagai.com/guides/jekyll
+- Add AI to a single HTML file: https://onetagai.com/guides/single-html-file
+- Add 'ask the docs' AI search to a documentation site: https://onetagai.com/guides/ask-the-docs
+- Add a TL;DR summary button to blog posts: https://onetagai.com/guides/summarize-button
+- Translate a web page on the fly: https://onetagai.com/guides/translate-page
+- Is it safe to put an AI API key in a static HTML page? https://onetagai.com/guides/api-key-in-html
+- Ways to add AI to a static site, compared: https://onetagai.com/guides/compare
