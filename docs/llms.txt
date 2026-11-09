@@ -97,6 +97,10 @@ A Pro key locked to a domain works only from browser pages on that domain, its s
 Full docs: https://onetagai.com/docs
 Everything (docs plus the guides) on one page: https://onetagai.com/llms-full.txt
 
+## Ready-made blocks
+
+Twelve copy-paste blocks (summarize this page, ask this page, FAQ bot, rewrite, translate, extract to JSON, quiz, explain code, ...), one HTML file each: https://aiblock.onetagai.com/ and https://aiblock.onetagai.com/llms.txt
+
 ## Guides
 
 - Add AI to a GitHub Pages site: https://onetagai.com/guides/github-pages
