@@ -1,4 +1,4 @@
-/*! OneTag AI SDK v1.3.0 | https://onetagai.com | generated from sdk/v1.js by build.mjs, do not edit */
+/*! OneTag AI SDK v1.2.0 | https://onetagai.com | generated from sdk/v1.js by build.mjs, do not edit */
 const MAX_TEXT = 32000;
 const MAX_SIDE = 1600;
 const CONTROLS = ["HTMLInputElement", "HTMLTextAreaElement", "HTMLSelectElement"];
@@ -22,8 +22,6 @@ const config = {
   endpoint: data.endpoint || SITE + "/v1/ask",
   // A short slug naming the integration that sends the calls (a plugin or package name).
   via: data.via || "",
-  // Pro keys only: the model that answers, by name (see /docs#models). Empty is the default model.
-  model: data.model || "",
 };
 
 class OneTagError extends Error {
@@ -66,7 +64,6 @@ function configure(options = {}) {
   if (options.key !== undefined) config.key = options.key;
   if (options.endpoint !== undefined) config.endpoint = options.endpoint;
   if (options.via !== undefined) config.via = options.via;
-  if (options.model !== undefined) config.model = options.model;
 }
 
 const isSvg = (s) => /^(data:)?image\/svg|\.svg([?#]|$)/i.test(s || "");
@@ -216,8 +213,6 @@ async function ask(prompt, input, options) {
     stream: !!o.stream,
     history: o.history,
     via: o.via || config.via || undefined,
-    // options.model: null asks the default model on a page that set data-model.
-    model: (o.model !== undefined ? o.model : config.model) || undefined,
   });
   let response;
   try {
@@ -242,6 +237,6 @@ async function ask(prompt, input, options) {
   }
 }
 
-const version = "1.3.0";
+const version = "1.2.0";
 
 export { ask, configure, OneTagError, version };

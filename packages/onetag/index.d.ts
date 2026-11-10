@@ -19,8 +19,6 @@ export interface AskOptions {
   history?: AskMessage[];
   /** Abort the call. */
   signal?: AbortSignal;
-  /** Pro keys only: the model that answers, by name, e.g. "deepseek-v4-pro". See https://onetagai.com/docs#models */
-  model?: string | null;
   /** Use this key for this call instead of the configured one. */
   key?: string;
   /** A short slug naming the integration that sends the call. For packages built on this one. */
@@ -34,8 +32,6 @@ export interface ConfigureOptions {
   endpoint?: string;
   /** A short slug naming the integration that sends the calls. */
   via?: string;
-  /** Pro keys only: the model that answers every call, by name. */
-  model?: string;
 }
 
 export type OneTagErrorCode =
@@ -47,7 +43,6 @@ export type OneTagErrorCode =
   | "bad_request"
   | "bad_key"
   | "domain_not_allowed"
-  | "pro_required"
   | "too_large"
   | "quota_exceeded"
   | "rate_limited"

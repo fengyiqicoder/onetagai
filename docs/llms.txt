@@ -39,6 +39,23 @@ For an "ask this page" chat button with no code, use the widget instead of the S
 
 It adds a floating button; the panel answers questions from the text of the current page (`main`, else `[role="main"]`, else `body`). It is independent of `v1.js`, renders in a shadow root, follows the page language (English, Simplified and Traditional Chinese) and the page's light or dark background, and spends the key's tokens like any other call. Options are `data-*` attributes, or query parameters on the script URL (`widget.js?key=...&position=left`): `key` (required), `source` (CSS selector of the text to read), `title`, `greeting`, `placeholder`, `system`, `position` (`left` | `right`), `color` (hex), `theme` (`light` | `dark` | `auto`), `lang`, `launcher` (`false` hides the button), `ref` (name of the theme or plugin shipping it). To open it from your own button: `onetagWidget.open()`, `.close()`, `.toggle()`; `.show()` / `.hide()` for the floating button.
 
+## Ask Docs (documentation sites, no code)
+
+For an "Ask AI" box on a static documentation site that answers from all the pages of the site and links to the ones it used:
+
+```html
+<script async src="https://onetagai.com/ask-docs.js" data-key="YOUR_ONETAG_KEY"></script>
+```
+
+MkDocs and Material for MkDocs, in `mkdocs.yml` (no plugin):
+
+```yaml
+extra_javascript:
+  - https://onetagai.com/ask-docs.js?key=YOUR_ONETAG_KEY
+```
+
+Nothing is crawled or hosted. When a reader asks, the browser reads the index the site already publishes, picks the matching sections (up to 20,000 characters) and sends them with the question. The index is found on its own: MkDocs `search/search_index.json`, a Pagefind index (`pagefind/`, as on Starlight or after `npx pagefind --site <dir>`), `llms-full.txt`, and with none of these the text of the current page. It is independent of `v1.js`, renders in a shadow root, puts its button in the header of Material for MkDocs and floats it elsewhere, opens with Ctrl+/ or ⌘+/, and follows the page's language and light or dark background. Options are `data-*` attributes or query parameters on the script URL: `key`, `label`, `placeholder`, `position` (`auto` | `float` | `left` | `none`), `button` (CSS selector of your own opener), `color` (hex, without `#` in a URL), `theme`, `lang`, `rules` (replaces the instructions), `index` (address of the index), `ref`. From code: `onetagAskDocs.open()`, `.close()`, `.ask("question")`. Live example: https://fengyiqicoder.github.io/mkdocs-onetag/
+
 ## API
 
 `onetag.ask(prompt, input?, options?) -> Promise<string | object>`

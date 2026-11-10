@@ -61,7 +61,7 @@ OneTag AI 让任何静态网页贴一行 `<script>` 就能调用 AI，不用后�
 </script>
 ```
 
-免费：填邮箱领 key，账号共 100 万 token，贴到任意数量的网站都能用。Pro：$9.9/月，每月 1 亿 token，可把 key 锁定到自己的域名。[领 key](https://onetagai.com/#get-key) · [文档](https://onetagai.com/docs)。
+免费：填邮箱领 key，每月 100 万 token（1 号重置），贴到任意数量的网站都能用。Pro：$9.9/月，每月 1 亿 token，可把 key 锁定到自己的域名。[领 key](https://onetagai.com/#get-key) · [文档](https://onetagai.com/docs)。
 
 这个仓库放的是能直接链接或复制的部分：浏览器 SDK（`sdk/v1.js`，也可从 jsDelivr 加载）和基于它的组件。托管接口本身不在这里。
 

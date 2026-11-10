@@ -41,20 +41,6 @@ test("ask posts the right body and parses json mode", async () => {
   assert.deepEqual(body.input, [{ type: "text", text: "text" }]);
 });
 
-test("ask sends the chosen model, per call or configured, and none by default", async () => {
-  const bodies = [];
-  ctx.fetch = async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, status: 200, json: async () => ({ text: "ok" }) }; };
-  await ctx.onetag.ask("p");
-  await ctx.onetag.ask("p", null, { model: "kimi-k3.1-pro" });
-  ctx.onetag.configure({ model: "glm-5.3" });
-  await ctx.onetag.ask("p");
-  await ctx.onetag.ask("p", null, { model: "deepseek-v4-pro" });
-  await ctx.onetag.ask("p", null, { model: null });
-  ctx.onetag.configure({ model: "" });
-  await ctx.onetag.ask("p");
-  assert.deepEqual(bodies.map((b) => b.model), [undefined, "kimi-k3.1-pro", "glm-5.3", "deepseek-v4-pro", undefined, undefined]);
-});
-
 test("ask throws OneTagError with server code", async () => {
   ctx.fetch = async () => ({ ok: false, status: 429, json: async () => ({ error: { code: "quota_exceeded", message: "nope" } }) });
   await assert.rejects(ctx.onetag.ask("p"), (e) => e instanceof ctx.onetag.OneTagError && e.code === "quota_exceeded" && e.status === 429);
@@ -363,15 +349,4 @@ test("ask sends via from the script tag, configure() or the call, and a per-call
   await ctx.onetag.ask("p");
   assert.equal("via" in body, false);
   assert.equal(body.key, "ot_test");
-});
-
-test("data-model on the script tag names the model for every call", async () => {
-  const bodies = [];
-  const c = { window: {}, document: { currentScript: { dataset: { key: "ot_test", model: "kimi-k3.1-pro" }, src: "https://onetagai.com/v1.js" } }, TextDecoder, URL,
-    fetch: async (url, init) => { bodies.push(JSON.parse(init.body)); return { ok: true, json: async () => ({ text: "ok" }) }; } };
-  c.window = c; vm.createContext(c); vm.runInContext(src, c);
-  await c.onetag.ask("p");
-  await c.onetag.ask("p", null, { model: "glm-5.3" });
-  await c.onetag.ask("p", null, { model: null });
-  assert.deepEqual(bodies.map((b) => b.model), ["kimi-k3.1-pro", "glm-5.3", undefined]);
 });

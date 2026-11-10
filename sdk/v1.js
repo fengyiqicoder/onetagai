@@ -1,4 +1,4 @@
-/*! OneTag AI SDK v1.3.0 | https://onetagai.com | onetag.ask(prompt, input?, options?) */
+/*! OneTag AI SDK v1.2.0 | https://onetagai.com | onetag.ask(prompt, input?, options?) */
 (() => {
   "use strict";
 
@@ -25,8 +25,6 @@
     endpoint: data.endpoint || SITE + "/v1/ask",
     // A short slug naming the integration that sends the calls (a plugin or package name).
     via: data.via || "",
-    // Pro keys only: the model that answers, by name (see /docs#models). Empty is the default model.
-    model: data.model || "",
   };
 
   class OneTagError extends Error {
@@ -69,7 +67,6 @@
     if (options.key !== undefined) config.key = options.key;
     if (options.endpoint !== undefined) config.endpoint = options.endpoint;
     if (options.via !== undefined) config.via = options.via;
-    if (options.model !== undefined) config.model = options.model;
   }
 
   const isSvg = (s) => /^(data:)?image\/svg|\.svg([?#]|$)/i.test(s || "");
@@ -219,8 +216,6 @@
       stream: !!o.stream,
       history: o.history,
       via: o.via || config.via || undefined,
-      // options.model: null asks the default model on a page that set data-model.
-      model: (o.model !== undefined ? o.model : config.model) || undefined,
     });
     let response;
     try {
@@ -246,7 +241,7 @@
   }
 
   globalThis.onetag = {
-    version: "1.3.0",
+    version: "1.2.0",
     ask,
     configure,
     OneTagError,

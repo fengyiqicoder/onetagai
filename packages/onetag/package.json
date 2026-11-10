@@ -1,6 +1,6 @@
 {
   "name": "onetagai",
-  "version": "1.3.0",
+  "version": "1.2.0",
   "description": "AI for static sites without a backend: ask(prompt, input) from the browser with a public key. No server, no secret in your code.",
   "type": "module",
   "main": "./index.js",
