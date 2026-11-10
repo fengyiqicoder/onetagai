@@ -1,0 +1,39 @@
+{
+  "name": "eleventy-onetag",
+  "version": "0.1.0",
+  "description": "Eleventy plugin that writes llms.txt and llms-full.txt from your built site and adds an Ask AI box that answers from it. No backend.",
+  "main": "./index.cjs",
+  "module": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  },
+  "files": ["index.cjs", "index.mjs", "index.d.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["eleventy-plugin", "eleventy", "11ty", "llms.txt", "llms-full.txt", "ai", "ask-ai", "chatbot", "search", "static-site", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=eleventy-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/eleventy-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "static-llms-txt": "^0.1.0"
+  },
+  "peerDependencies": {
+    "@11ty/eleventy": ">=2.0.0"
+  }
+}

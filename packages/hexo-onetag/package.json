@@ -1,0 +1,30 @@
+{
+  "name": "hexo-onetag",
+  "version": "0.1.0",
+  "description": "llms.txt, llms-full.txt and an Ask AI box for Hexo sites. The llms files need no key; the box answers from your own posts and pages, with no backend.",
+  "main": "index.js",
+  "files": ["index.js", "lib/", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["hexo", "hexo-plugin", "hexo-generator", "llms.txt", "llms-full.txt", "ai", "ask-ai", "chatbot", "search", "static-site", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=hexo-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/hexo-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "static-llms-txt": "^0.1.0"
+  },
+  "peerDependencies": {
+    "hexo": ">=5.0.0"
+  }
+}
