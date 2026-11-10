@@ -18,6 +18,7 @@ This repository holds the parts of OneTag AI you can link to or copy: the browse
 | Path | What it is | How to use it |
 | --- | --- | --- |
 | `sdk/v1.js` | The browser SDK: `onetag.ask(prompt, input?, options?)`. Dependency-free, 3.8 KB gzipped. | `<script src="https://onetagai.com/v1.js" data-key="…">`, or from jsDelivr: `https://cdn.jsdelivr.net/gh/fengyiqicoder/onetagai@main/sdk/v1.js`, or copy the file into your site. It talks to `https://onetagai.com/v1/ask` wherever it is loaded from. |
+| `sdk/widget.js` | The page widget: a floating "ask this page" button and chat, no code. Independent of `v1.js`, shadow DOM, 7 KB gzipped. | `<script async src="https://onetagai.com/widget.js" data-key="…">`. Options: [docs](https://onetagai.com/docs#widget). |
 | `sdk/test/` | The SDK's tests (`node --test sdk/test/*.test.mjs`) and a smoke page. | |
 | `docs/llms.txt` | The whole API on one page, written for people and AI coding tools. | Paste it into your AI tool's context. |
 
