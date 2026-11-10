@@ -230,6 +230,27 @@ test("parseAnswer: paragraphs, fenced code (also while still open), inline code,
   assert.deepEqual(local(parseAnswer("")), []);
 });
 
+test("parseAnswer: a Markdown table becomes rows of cells, the header first", () => {
+  const text = "Every option:\n\n| Option | Default |\n| --- | :-: |\n| `position` | `auto` |\n| `a|b` | x \\| y |\n\nThat is all.";
+  assert.deepEqual(local(parseAnswer(text)), [
+    { spans: [{ text: "Every option:" }] },
+    { table: [
+      [[{ text: "Option" }], [{ text: "Default" }]],
+      [[{ code: "position" }], [{ code: "auto" }]],
+      [[{ code: "a|b" }], [{ text: "x | y" }]],
+    ] },
+    { spans: [{ text: "That is all." }] },
+  ]);
+  // no blank line before the table, and the last row still arriving
+  assert.deepEqual(local(parseAnswer("Options:\n| A | B |\n|---|---|\n| 1 | 2 |\n| 3")), [
+    { spans: [{ text: "Options:" }] },
+    { table: [[[{ text: "A" }], [{ text: "B" }]], [[{ text: "1" }], [{ text: "2" }]], [[{ text: "3" }]]] },
+  ]);
+  // a bar without the rule under it is ordinary text, and so is a table inside a code block
+  assert.deepEqual(local(parseAnswer("| not a table |")), [{ spans: [{ text: "| not a table |" }] }]);
+  assert.deepEqual(local(parseAnswer("```\n| A |\n| - |\n```")), [{ code: "| A |\n| - |" }]);
+});
+
 test("cut does not split a surrogate pair", () => {
   assert.equal(cut("ab😀", 3), "ab");
   assert.equal(cut("abc", 0), "");
@@ -270,4 +291,41 @@ test("readSaved: the last exchange comes back only on the site it was asked on, 
   assert.equal(readSaved("{not json", "https://docs.example.com/guide/"), null);
   assert.equal(readSaved(null, "https://docs.example.com/guide/"), null);
   assert.equal(readSaved(JSON.stringify({ base: "https://docs.example.com/", question: 1, answer: "a" }), "https://docs.example.com/"), null);
+});
+
+// A document with only what placementIn looks at.
+function fakeDoc({ material, navbar, hydrated, readyState }) {
+  const search = { name: "search" };
+  const right = navbar ? { querySelector: (sel) => (sel.includes("navbarSearchContainer") ? search : null) } : null;
+  const inner = material ? { querySelector: () => null } : null;
+  return {
+    readyState: readyState || "complete",
+    documentElement: { getAttribute: (name) => (name === "data-has-hydrated" && hydrated !== undefined ? hydrated : null) },
+    querySelector: (sel) => (sel === ".md-header__inner" ? inner : sel.includes("navbar__items--right") ? right : null),
+    search, right,
+  };
+}
+
+test("placement: Docusaurus gets the button in the navbar, before the search box, once React has hydrated", () => {
+  const { placementIn } = api._internal;
+  const before = fakeDoc({ navbar: true, hydrated: "false" });
+  assert.deepEqual(local(placementIn(before, "auto")), { wait: true });
+  const after = fakeDoc({ navbar: true, hydrated: "true" });
+  const spot = placementIn(after, "auto");
+  assert.equal(spot.parent, after.right);
+  assert.equal(spot.before, after.search);
+});
+
+test("placement: a Docusaurus without the hydration flag waits for the page to finish loading", () => {
+  const { placementIn } = api._internal;
+  assert.deepEqual(local(placementIn(fakeDoc({ navbar: true, readyState: "interactive" }), "auto")), { wait: true });
+  const done = fakeDoc({ navbar: true, readyState: "complete" });
+  assert.equal(placementIn(done, "auto").parent, done.right);
+});
+
+test("placement: float and none are respected, and an unknown theme floats", () => {
+  const { placementIn } = api._internal;
+  assert.deepEqual(local(placementIn(fakeDoc({ navbar: true, hydrated: "true" }), "float")), { float: true });
+  assert.equal(placementIn(fakeDoc({ navbar: true, hydrated: "true" }), "none"), null);
+  assert.deepEqual(local(placementIn(fakeDoc({}), "auto")), { float: true });
 });

@@ -12,7 +12,8 @@
 // the browser reads the full-text index the site already publishes, picks the passages that
 // match, and sends them with the question to OneTag AI. The index is found on its own:
 //   - MkDocs and Material for MkDocs: search/search_index.json
-//   - Pagefind (Starlight, or any site built with `npx pagefind --site <dir>`): pagefind/
+//   - Pagefind (Starlight, Docusaurus with docusaurus-onetag, or any site built with
+//     `npx pagefind --site <dir>`): pagefind/
 //   - llms-full.txt
 //   - none of these: the page the reader is on
 //
@@ -20,7 +21,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.1";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -416,29 +417,60 @@
     return { events, rest };
   }
 
+  // Text as spans: plain text, `code`, **bold** and [links](url).
+  function spansOf(body) {
+    const spans = [];
+    const re = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]\n]+)\]\(([^)\s]+)\)/g;
+    let last = 0, m;
+    while ((m = re.exec(body))) {
+      if (m.index > last) spans.push({ text: body.slice(last, m.index) });
+      if (m[1] !== undefined) spans.push({ code: m[1] });
+      else if (m[2] !== undefined) spans.push({ bold: m[2] });
+      else spans.push({ link: m[3], href: m[4] });
+      last = re.lastIndex;
+    }
+    if (last < body.length) spans.push({ text: body.slice(last) });
+    return spans;
+  }
+
+  // "| a | `b|c` | d \| e |" -> ["a", "`b|c`", "d | e"]: a bar inside code or after a backslash is not a border.
+  function tableCells(line) {
+    const body = line.trim().replace(/^\|/, "");
+    const cells = [];
+    let cur = "", code = false;
+    for (let i = 0; i < body.length; i++) {
+      const c = body[i];
+      if (c === "\\" && body[i + 1] === "|") { cur += "|"; i++; }
+      else if (c === "|" && !code) { cells.push(cur.trim()); cur = ""; }
+      else { if (c === "`") code = !code; cur += c; }
+    }
+    if (cur.trim()) cells.push(cur.trim());
+    return cells;
+  }
+
   // The answer as blocks: { code } for a fenced block (an unclosed one while the answer is
-  // still streaming counts), { spans } for a paragraph, whose spans are text, `code`,
-  // **bold** and [links](url).
+  // still streaming counts), { table } for a Markdown table (rows of cells of spans, the
+  // header first; the model repeats tables it finds in the docs), { spans } for a paragraph.
   function parseAnswer(text) {
     const blocks = [];
     const parts = String(text || "").split(/^[ \t]*```[^\n]*$/m);
     parts.forEach((part, i) => {
       if (i % 2) { const code = part.replace(/^\n|\n$/g, ""); if (code) blocks.push({ code }); return; }
       for (const para of part.split(/\n{2,}/)) {
-        const body = para.trim();
-        if (!body) continue;
-        const spans = [];
-        const re = /`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]\n]+)\]\(([^)\s]+)\)/g;
-        let last = 0, m;
-        while ((m = re.exec(body))) {
-          if (m.index > last) spans.push({ text: body.slice(last, m.index) });
-          if (m[1] !== undefined) spans.push({ code: m[1] });
-          else if (m[2] !== undefined) spans.push({ bold: m[2] });
-          else spans.push({ link: m[3], href: m[4] });
-          last = re.lastIndex;
+        const lines = para.split("\n");
+        let prose = [];
+        const flush = () => { const body = prose.join("\n").trim(); if (body) blocks.push({ spans: spansOf(body) }); prose = []; };
+        for (let n = 0; n < lines.length; n++) {
+          // a header row, then the rule under it: | --- | :-: |
+          if (/^\s*\|/.test(lines[n]) && /^\s*\|[\s|:-]*-[\s|:-]*$/.test(lines[n + 1] || "")) {
+            flush();
+            const rows = [tableCells(lines[n])];
+            for (n += 2; n < lines.length && /^\s*\|/.test(lines[n]); n++) rows.push(tableCells(lines[n]));
+            n--;
+            blocks.push({ table: rows.map((row) => row.map(spansOf)) });
+          } else prose.push(lines[n]);
         }
-        if (last < body.length) spans.push({ text: body.slice(last) });
-        blocks.push({ spans });
+        flush();
       }
     });
     return blocks;
@@ -715,6 +747,10 @@
     ".answer code{padding:1px 4px}",
     ".answer pre{margin:0 0 12px;padding:10px 12px;overflow-x:auto;white-space:pre}",
     ".answer pre code{padding:0;background:none}",
+    ".answer .table{margin:0 0 12px;overflow-x:auto}",
+    ".answer table{width:100%;border-collapse:collapse;font-size:14px}",
+    ".answer th,.answer td{padding:6px 8px;border:1px solid var(--line);text-align:left;vertical-align:top;overflow-wrap:break-word}",
+    ".answer th{background:var(--paper2);font-weight:600}",
     ".answer a,.list a{color:var(--accent)}",
     ".list{margin:0 0 12px;padding:10px 12px;border-left:3px solid var(--accent);background:var(--paper2);font-size:14px}",
     ".list b{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:2px}",
@@ -867,17 +903,26 @@
   // Where the button goes: next to the search box of a theme we know, otherwise floating
   // in a corner. position="none" shows no button (open it from your own with data-button
   // or onetagAskDocs.open()).
-  function placement() {
-    if (config.position === "none") return null;
-    if (config.position === "auto") {
-      const inner = doc.querySelector(".md-header__inner");   // Material for MkDocs
+  function placementIn(d, position) {
+    if (position === "none") return null;
+    if (position === "auto") {
+      const inner = d.querySelector(".md-header__inner");   // Material for MkDocs
       if (inner) {
         const search = inner.querySelector(":scope > .md-search");
         return { parent: inner, before: search ? search.nextSibling : inner.querySelector(":scope > .md-header__source") };
       }
+      const right = d.querySelector(".navbar .navbar__items--right");   // Docusaurus
+      if (right) {
+        // React owns the navbar: a node added before it has hydrated is thrown away, or makes
+        // it render the page again. Docusaurus 3 says when it is done on <html>; older ones do not.
+        const hydrated = d.documentElement.getAttribute("data-has-hydrated");
+        if (hydrated === "false" || (hydrated === null && d.readyState !== "complete")) return { wait: true };
+        return { parent: right, before: right.querySelector(':scope > [class*="navbarSearchContainer"]') };
+      }
     }
     return { float: true };
   }
+  function placement() { return placementIn(doc, config.position); }
 
   // Builds the box once and keeps it and its button attached: a theme that swaps parts of
   // the page on navigation can drop either.
@@ -928,18 +973,27 @@
   function closeBox() { if (ui && ui.dialog.open) ui.dialog.close(); }
 
   function paint(text) {
+    const span = (s) => {
+      if (s.code !== undefined) return el("code", { text: s.code });
+      if (s.bold !== undefined) return el("strong", { text: s.bold });
+      if (s.link !== undefined) {
+        let href = "";
+        try { const u = new URL(s.href, win.location.href); if (/^https?:$/.test(u.protocol)) href = u.href; } catch (e) { /* shown as text */ }
+        return href ? el("a", { href, text: s.link }) : doc.createTextNode(s.link);
+      }
+      return doc.createTextNode(s.text);
+    };
     const nodes = parseAnswer(text).map((block) => {
       if (block.code !== undefined) return el("pre", {}, [el("code", { text: block.code })]);
-      return el("p", {}, block.spans.map((s) => {
-        if (s.code !== undefined) return el("code", { text: s.code });
-        if (s.bold !== undefined) return el("strong", { text: s.bold });
-        if (s.link !== undefined) {
-          let href = "";
-          try { const u = new URL(s.href, win.location.href); if (/^https?:$/.test(u.protocol)) href = u.href; } catch (e) { /* shown as text */ }
-          return href ? el("a", { href, text: s.link }) : doc.createTextNode(s.link);
-        }
-        return doc.createTextNode(s.text);
-      }));
+      if (block.table) {
+        const row = (cells, tag) => el("tr", {}, cells.map((cell) => el(tag, {}, cell.map(span))));
+        // the wrapper scrolls sideways, so a wide table never widens the box
+        return el("div", { class: "table" }, [el("table", {}, [
+          el("thead", {}, [row(block.table[0], "th")]),
+          el("tbody", {}, block.table.slice(1).map((cells) => row(cells, "td"))),
+        ])]);
+      }
+      return el("p", {}, block.spans.map(span));
     });
     ui.answer.replaceChildren(...nodes);
   }
@@ -1022,7 +1076,7 @@
     open,
     close: closeBox,
     ask,            // ask("How do I deploy?") opens the box and answers
-    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, isDark, STRINGS, RULES, DEMO_KEY },
+    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
   };
 
   // Ctrl+/ or ⌘+/ opens and closes the box.
@@ -1043,11 +1097,14 @@
     }
     if (win.MutationObserver) {
       let queued = false;
-      new win.MutationObserver(() => {
+      const observer = new win.MutationObserver(() => {
         if (queued) return;
         queued = true;
         win.requestAnimationFrame(() => { queued = false; mount(); });
-      }).observe(doc.body, { childList: true, subtree: true });
+      });
+      observer.observe(doc.body, { childList: true, subtree: true });
+      observer.observe(doc.documentElement, { attributes: true, attributeFilter: ["data-has-hydrated"] });
+      win.addEventListener("load", () => mount());
     }
   }
 
