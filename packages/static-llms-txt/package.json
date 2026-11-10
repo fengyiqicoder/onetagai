@@ -1,0 +1,39 @@
+{
+  "name": "static-llms-txt",
+  "version": "0.1.0",
+  "description": "Write llms.txt and llms-full.txt for any static site from the HTML it already built. Works after Eleventy, Hugo, Jekyll, Astro, Gatsby, Docusaurus or plain HTML. No API key.",
+  "main": "./index.cjs",
+  "module": "./index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.mjs",
+      "require": "./index.cjs"
+    }
+  },
+  "bin": {
+    "static-llms-txt": "./cli.cjs"
+  },
+  "files": ["index.cjs", "index.mjs", "index.d.ts", "cli.cjs", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["llms.txt", "llms-txt", "llms-full.txt", "llmstxt", "static-site", "html-to-markdown", "ssg", "eleventy", "hugo", "jekyll", "ai", "seo", "geo", "cli"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://github.com/fengyiqicoder/onetagai/tree/main/packages/static-llms-txt#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/static-llms-txt"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "node-html-parser": "^7.0.1"
+  }
+}
