@@ -51,7 +51,8 @@ function inline(node) {
 
 function codeBlock(node) {
   const code = node.querySelector("code") || node;
-  const cls = (code.getAttribute("class") || "") + " " + (node.getAttribute("class") || "") + " " + (node.getAttribute("data-language") || node.getAttribute("data-lang") || "");
+  const wrap = node.parentNode && node.parentNode.getAttribute ? node.parentNode.getAttribute("class") || "" : "";  // VitePress: <div class="language-js"><pre>
+  const cls = (code.getAttribute("class") || "") + " " + (node.getAttribute("class") || "") + " " + wrap + " " + (node.getAttribute("data-language") || node.getAttribute("data-lang") || "");
   const lang = (/(?:language|lang|highlight-source)-([\w+#.-]+)/.exec(cls) || [])[1] || (node.getAttribute("data-language") || node.getAttribute("data-lang") || "");
   // Line-per-element highlighters (Shiki, Expressive Code) put each line in its own block element.
   const lines = code.querySelectorAll(".line, .ec-line");
@@ -146,9 +147,44 @@ function meta(doc, selector) {
 
 // One HTML document → { title, description, canonical, noindex, redirect, sections, text }.
 // sections: [{ heading, id, text }] where the first one (heading "") is the text before any h2.
+// Minifiers such as html-minifier-terser (removeOptionalTags, used by Docusaurus) drop the table end
+// tags HTML lets you omit. node-html-parser copes with omitted </li> and </p> but not with table parts:
+// one such table and <body> and <main> vanish from the tree. Put the table end tags back first.
+// Well-formed tables come out unchanged; nested tables are left alone.
+function closeTableTags(html) {
+  if (!/<table\b/i.test(html)) return html;
+  return html.replace(/<table\b[\s\S]*?<\/table>/gi, (table) => {
+    if (/<table\b/i.test(table.slice(6))) return table;
+    let cell = "", row = false, part = "", out = "", last = 0, m;
+    const re = /<(\/?)(td|th|tr|thead|tbody|tfoot|table)\b[^>]*>/gi;
+    const shut = (to) => {
+      let s = "";
+      if (cell) { s += "</" + cell + ">"; cell = ""; }
+      if (to !== "cell" && row) { s += "</tr>"; row = false; }
+      if (to === "part" && part) { s += "</" + part + ">"; part = ""; }
+      return s;
+    };
+    while ((m = re.exec(table))) {
+      out += table.slice(last, m.index);
+      last = re.lastIndex;
+      const end = m[1] === "/", tag = m[2].toLowerCase();
+      if (end) {
+        if (tag === "td" || tag === "th") { if (cell) { out += m[0]; cell = ""; } }
+        else if (tag === "tr") { out += shut("row").replace(/<\/tr>$/, "") + m[0]; row = false; }
+        else if (tag === "table") out += shut("part") + m[0];
+        else { out += shut("row") + m[0]; part = ""; }
+      } else if (tag === "td" || tag === "th") { out += shut("cell") + m[0]; cell = tag; }
+      else if (tag === "tr") { out += shut("row") + m[0]; row = true; }
+      else if (tag === "table") out += m[0];
+      else { out += shut("part") + m[0]; part = tag; }
+    }
+    return out + table.slice(last);
+  });
+}
+
 function readHtml(html, options) {
   const o = options || {};
-  const doc = parse(String(html), { comment: false, blockTextElements: { script: false, style: false, noscript: false } });
+  const doc = parse(closeTableTags(String(html)), { comment: false, blockTextElements: { script: false, style: false, noscript: false } });
   const robots = meta(doc, 'meta[name="robots"]') + " " + meta(doc, 'meta[name="googlebot"]');
   const refresh = doc.querySelector('meta[http-equiv="refresh"], meta[http-equiv="Refresh"]');
   const canonicalEl = doc.querySelector('link[rel="canonical"]');
@@ -245,8 +281,12 @@ function scan(dir, options) {
   for (const rel of walkHtml(root)) {
     if (/(^|\/)(404|500)(\.html?|\/index\.html?)$/i.test(rel)) continue;
     if (excludes.some((re) => re.test(rel))) continue;
-    const info = readHtml(fs.readFileSync(path.join(root, rel), "utf8"), { content: o.content, exclude: o.remove });
+    const html = fs.readFileSync(path.join(root, rel), "utf8");
+    const info = readHtml(html, { content: o.content, exclude: o.remove });
     if (info.noindex || info.redirect) continue;
+    if (!info.text && html.length > 2000 && o.warn !== false) {
+      console.warn("static-llms-txt: found no text in " + rel + ", so it is left out. If the page has text, please report it at https://github.com/fengyiqicoder/onetagai/issues");
+    }
     if (info.text.length < (o.minLength === undefined ? 40 : o.minLength)) continue;
     const p = urlPath(rel, o.cleanUrls);
     const url = o.site ? joinUrl(o.site, p) : /^https?:\/\//i.test(info.canonical) ? info.canonical : "";

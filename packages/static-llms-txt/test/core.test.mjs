@@ -200,3 +200,26 @@ test("readHtml keeps words apart for back-to-back links and blocks inside list i
   assert.match(info.text, /^1\. Step 1 Add a client Name and address\.$/m);
   assert.match(info.text, /Use `foo\(\)` now\./);
 });
+
+test("readHtml keeps pages whose tables omit optional end tags (html-minifier removeOptionalTags)", () => {
+  const html = "<html><head><title>Options</title></head><body><nav>Menu</nav><main><h1>Options</h1><p>Every option the widget reads, with what it does.</p>"
+    + "<table><thead><tr><th>Option<th>What it does<tbody><tr><td>position<td>Where the button goes<tr><td>color<td>Button color</table>"
+    + "<h2 id=after>After the table</h2><p>Text after the table stays.</p></main></body></html>";
+  const r = readHtml(html, {});
+  assert.equal(r.title, "Options");
+  assert.match(r.text, /\| position \| Where the button goes \|/);
+  assert.match(r.text, /Text after the table stays/);
+  assert.doesNotMatch(r.text, /Menu/);
+  assert.equal(r.sections.some((s) => s.heading === "After the table"), true);
+});
+
+test("closing table tags leaves well-formed tables unchanged", () => {
+  const full = "<main><h1>T</h1><table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></main>";
+  const a = readHtml(full, {}).text;
+  assert.match(a, /\| 1 \| 2 \|/);
+});
+
+test("code language is read from a wrapper div (VitePress)", () => {
+  const html = '<main><h1>Code</h1><p>Install the package with npm first.</p><div class="language-sh vp-adaptive-theme"><button class="copy"></button><span class="lang">sh</span><pre class="shiki"><code><span class="line">npm i x</span></code></pre></div></main>';
+  assert.match(readHtml(html, {}).text, /```sh\nnpm i x\n```/);
+});

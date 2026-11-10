@@ -1,0 +1,53 @@
+{
+  "name": "nuxt-onetag",
+  "version": "0.1.0",
+  "description": "Nuxt module: writes llms.txt and llms-full.txt for prerendered Nuxt sites and adds an Ask AI box that answers from your own pages. No backend.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs"
+    }
+  },
+  "main": "./dist/module.mjs",
+  "typesVersions": {
+    "*": {
+      ".": ["./dist/types.d.mts"]
+    }
+  },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "prepack": "nuxt-module-build build",
+    "dev": "nuxi dev playground",
+    "dev:generate": "nuxi generate playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["nuxt", "nuxt-module", "nuxt3", "nuxt4", "llms.txt", "llms-txt", "ai", "ask-ai", "chatbot", "search", "static-site", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=nuxt-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/nuxt-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@nuxt/kit": "^3.13.0 || ^4.0.0",
+    "static-llms-txt": "^0.1.0"
+  },
+  "peerDependencies": {
+    "nuxt": "^3.13.0 || ^4.0.0"
+  },
+  "devDependencies": {
+    "@nuxt/module-builder": "^1.0.3",
+    "@nuxt/schema": "^4.6.4",
+    "nuxt": "^4.6.4"
+  }
+}

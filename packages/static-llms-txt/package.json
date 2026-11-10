@@ -1,6 +1,6 @@
 {
   "name": "static-llms-txt",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Write llms.txt and llms-full.txt for any static site from the HTML it already built. Works after Eleventy, Hugo, Jekyll, Astro, Gatsby, Docusaurus or plain HTML. No API key.",
   "main": "./index.cjs",
   "module": "./index.mjs",
@@ -13,14 +13,36 @@
     }
   },
   "bin": {
-    "static-llms-txt": "./cli.cjs"
+    "static-llms-txt": "cli.cjs"
   },
-  "files": ["index.cjs", "index.mjs", "index.d.ts", "cli.cjs", "README.md", "LICENSE"],
+  "files": [
+    "index.cjs",
+    "index.mjs",
+    "index.d.ts",
+    "cli.cjs",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "prepublishOnly": "npm test"
   },
-  "keywords": ["llms.txt", "llms-txt", "llms-full.txt", "llmstxt", "static-site", "html-to-markdown", "ssg", "eleventy", "hugo", "jekyll", "ai", "seo", "geo", "cli"],
+  "keywords": [
+    "llms.txt",
+    "llms-txt",
+    "llms-full.txt",
+    "llmstxt",
+    "static-site",
+    "html-to-markdown",
+    "ssg",
+    "eleventy",
+    "hugo",
+    "jekyll",
+    "ai",
+    "seo",
+    "geo",
+    "cli"
+  ],
   "license": "MIT",
   "author": "OneTag AI (https://onetagai.com)",
   "homepage": "https://github.com/fengyiqicoder/onetagai/tree/main/packages/static-llms-txt#readme",
