@@ -1,0 +1,36 @@
+{
+  "name": "gatsby-onetag",
+  "version": "0.1.0",
+  "description": "Gatsby plugin that writes llms.txt and llms-full.txt at build time and adds an Ask AI box that answers from your site. No backend.",
+  "main": "./index.js",
+  "files": ["index.js", "gatsby-node.js", "gatsby-ssr.js", "core.js", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["gatsby", "gatsby-plugin", "llms.txt", "llms-full.txt", "ai", "ask-ai", "chatbot", "search", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=gatsby-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/gatsby-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "static-llms-txt": "^0.1.0"
+  },
+  "peerDependencies": {
+    "gatsby": "^5.0.0",
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "gatsby-plugin-utils": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
