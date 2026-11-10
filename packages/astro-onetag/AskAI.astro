@@ -1,0 +1,372 @@
+---
+// <AskAI />: a box where visitors ask a question and get an answer written from this page
+// (or, with scope="site", from the whole site through its Pagefind index).
+// The answer comes from OneTag AI, called from the browser with a public key: no backend.
+export interface Props {
+	/** OneTag AI key. Designed to be public. Also read from PUBLIC_ONETAG_KEY. Without one the box answers on localhost only. */
+	key?: string;
+	/** "page" answers from this page. "site" searches the Pagefind index (build the site with Pagefind, e.g. astro-pagefind). */
+	scope?: 'page' | 'site';
+	/** CSS selector of the content to answer from when scope is "page". Default: main, else the body. */
+	about?: string;
+	/** Text above the box. Pass an empty string to leave it out. */
+	title?: string;
+	placeholder?: string;
+	/** Button text. */
+	label?: string;
+	/** Instructions for the model: a persona, limits, a format. */
+	rules?: string;
+	/** Cap on the answer length in tokens. */
+	maxTokens?: number;
+	/** Show the "Powered by OneTag AI" line. */
+	credit?: boolean;
+	class?: string;
+}
+
+const {
+	key = import.meta.env.PUBLIC_ONETAG_KEY || '',
+	scope = 'page',
+	about = '',
+	title = scope === 'site' ? 'Ask this site' : 'Ask this page',
+	placeholder = 'Type a question',
+	label = 'Ask',
+	rules = 'You answer questions from visitors of this website. Answer only from the content provided. When it covers the question, answer directly and stop. When it does not, say so in one sentence. Plain text, under 120 words, no headings. Answer in the language of the question.',
+	maxTokens = 400,
+	credit = true,
+	class: className,
+} = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '') + '/';
+
+const state = globalThis as { astroOnetagWarned?: boolean };
+if (!key && import.meta.env.PROD && !state.astroOnetagWarned) {
+	state.astroOnetagWarned = true;
+	console.warn(
+		'[astro-onetag] No OneTag AI key: <AskAI /> will not answer on the deployed site. Get a free key (email only): ' +
+			`curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}' ` +
+			'then pass it as <AskAI key="..." /> or set PUBLIC_ONETAG_KEY.'
+	);
+}
+---
+
+<ask-ai
+	class:list={['ask-ai', className]}
+	data-key={key}
+	data-scope={scope}
+	data-about={about}
+	data-rules={rules}
+	data-max-tokens={maxTokens}
+	data-base={base}
+>
+	{title && <p class="ask-ai-title">{title}</p>}
+	<form class="ask-ai-form">
+		<input type="text" name="q" autocomplete="off" maxlength="400" placeholder={placeholder} aria-label={title || placeholder} required />
+		<button type="submit">{label}</button>
+	</form>
+	<p class="ask-ai-note" data-note hidden>No key set: on localhost the answers come from a shared demo key. Add your own free OneTag AI key before you deploy.</p>
+	<p class="ask-ai-status" data-status aria-live="polite" hidden></p>
+	<p class="ask-ai-answer" data-answer hidden></p>
+	<p class="ask-ai-sources" data-sources hidden></p>
+	{
+		credit && (
+			<p class="ask-ai-credit">
+				<a href="https://onetagai.com/?ref=astro-onetag" target="_blank" rel="noopener">Powered by OneTag AI</a>
+			</p>
+		)
+	}
+</ask-ai>
+
+<script>
+	// Characters of content sent per question. The OneTag limit is 32,000 for everything,
+	// so this keeps a margin for the question, the rules and the chat history.
+	const MAX_CONTEXT = 20000;
+	const PER_PAGE = 6000;
+	const TOP_PAGES = 5;
+
+	const MESSAGES: Record<string, string> = {
+		no_key: 'This box is not set up yet: the site owner needs to add a OneTag AI key.',
+		bad_key: 'This box is not set up correctly: its OneTag AI key is not valid.',
+		quota_exceeded: 'This site has used up its AI allowance for now.',
+		paused: 'The AI service is paused for today. Try again after 00:00 UTC.',
+		rate_limited: 'Too many questions in one minute. Give it a moment.',
+		too_large: 'That question is too long.',
+		network: 'Could not reach the AI service. Check your connection and try again.',
+		upstream: 'The AI provider had a problem. Try again in a few seconds.',
+	};
+
+	type Page = { title: string; url: string; text: string };
+
+	const STOP = new Set(('a an and are as at be by can could do does for from how i if in into is it its me my of on or ' +
+		'our should site that the their there these this to use using we what when where which who why will with you your').split(' '));
+	// Words worth searching: letters and digits, not stop words, longest first, at most six.
+	function keywords(q: string): string[] {
+		const words = (q.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}'-]*/gu) || []).filter((w) => w.length > 1 && !STOP.has(w));
+		const unique = [...new Set(words)].sort((a, b) => b.length - a.length).slice(0, 6);
+		return unique.length ? unique : [q];
+	}
+
+	class AskAI extends HTMLElement {
+		history: { role: 'user' | 'assistant'; content: string }[] = [];
+		controller: AbortController | null = null;
+		sdk: Promise<typeof import('onetagai')> | null = null;
+
+		connectedCallback() {
+			if (this.dataset.ready) return;
+			this.dataset.ready = 'true';
+			const form = this.querySelector('form')!;
+			const input = form.querySelector('input')!;
+			form.addEventListener('submit', (e) => {
+				e.preventDefault();
+				const q = input.value.trim();
+				if (!q) return;
+				input.value = '';
+				this.ask(q);
+			});
+			// The download starts when the visitor shows interest, not with the page.
+			input.addEventListener('focus', () => this.loadSdk().catch(() => {}), { once: true });
+			// The onetag package answers without a key on localhost only: say so to the site owner.
+			const local = /^(|localhost|127\.0\.0\.1|\[::1\]|.+\.localhost)$/.test(location.hostname);
+			if (!this.dataset.key && local) this.part('note').hidden = false;
+		}
+
+		part(name: string): HTMLElement {
+			return this.querySelector<HTMLElement>(`[data-${name}]`)!;
+		}
+
+		// The onetag package is its own chunk, so it never affects page speed.
+		loadSdk(): Promise<typeof import('onetagai')> {
+			if (!this.sdk) {
+				this.sdk = import('onetagai');
+				// A failed download is tried again on the next question.
+				this.sdk.catch(() => (this.sdk = null));
+			}
+			return this.sdk;
+		}
+
+		thisPage(): Page[] {
+			const about = this.dataset.about;
+			const el = (about && document.querySelector<HTMLElement>(about)) || document.querySelector<HTMLElement>('main') || document.body;
+			return [{ title: document.title, url: location.pathname, text: (el.innerText || el.textContent || '').slice(0, MAX_CONTEXT) }];
+		}
+
+		// Top pages for the question from the site's Pagefind index. Pagefind matches every word of
+		// a query, so a question like "how do I deploy to Netlify" finds nothing: the keywords are
+		// searched one by one and pages are ranked by how many of them they match.
+		// Without an index (also in `astro dev`), this page is used.
+		async retrieve(question: string): Promise<Page[]> {
+			if (this.dataset.scope !== 'site') return this.thisPage();
+			try {
+				const pf = await import(/* @vite-ignore */ this.dataset.base + 'pagefind/pagefind.js');
+				await pf.init();
+				const searches = await Promise.all(keywords(question).map((w) => pf.search(w)));
+				const scores = new Map<string, { score: number; result: any }>();
+				searches.forEach((s) => {
+					s.results.slice(0, 10).forEach((r: any, rank: number) => {
+						const cur = scores.get(r.id) || { score: 0, result: r };
+						cur.score += 1 + Math.max(0, 10 - rank) / 20 + (r.score || 0) / 100;
+						scores.set(r.id, cur);
+					});
+				});
+				const top = [...scores.values()].sort((a, b) => b.score - a.score).slice(0, TOP_PAGES);
+				const hits = await Promise.all(top.map((t) => t.result.data()));
+				const pages: Page[] = hits.map((h: any) => ({
+					title: h.meta?.title || h.url,
+					url: h.url,
+					text: (h.content || h.excerpt || '').slice(0, PER_PAGE),
+				}));
+				if (pages.length) return pages;
+			} catch {}
+			return this.thisPage();
+		}
+
+		async ask(question: string) {
+			const status = this.part('status');
+			const answer = this.part('answer');
+			const sources = this.part('sources');
+			const submit = this.querySelector<HTMLButtonElement>('form button')!;
+			const input = this.querySelector<HTMLInputElement>('form input')!;
+
+			if (this.controller) this.controller.abort();
+			this.controller = new AbortController();
+			const { signal } = this.controller;
+			submit.disabled = true;
+			status.textContent = 'Thinking…';
+			status.classList.remove('error');
+			status.hidden = false;
+			answer.hidden = true;
+			answer.textContent = '';
+			sources.hidden = true;
+			sources.textContent = '';
+
+			try {
+				const sdk = await this.loadSdk();
+				const pages = await this.retrieve(question);
+				let budget = MAX_CONTEXT;
+				const parts: string[] = [];
+				for (const p of pages) {
+					const chunk = `Page: ${p.title} (${p.url})\n${p.text}`.slice(0, budget);
+					if (!chunk) break;
+					parts.push(chunk);
+					budget -= chunk.length;
+				}
+				let shown = '';
+				// The model sometimes wraps file names and commands in backticks: show those as inline code.
+				const paint = () =>
+					answer.replaceChildren(
+						...shown.split('`').map((part, i) => {
+							if (i % 2 === 0) return document.createTextNode(part);
+							const code = document.createElement('code');
+							code.textContent = part;
+							return code;
+						})
+					);
+				const text = await sdk.ask(question + '\n\n(Reply in the same language as the question above.)', parts, {
+					key: this.dataset.key || undefined,
+					via: 'astro-onetag',
+					system: this.dataset.rules,
+					history: this.history,
+					maxTokens: Number(this.dataset.maxTokens) || 400,
+					signal,
+					stream: (delta: string) => {
+						status.hidden = true;
+						answer.hidden = false;
+						shown += delta;
+						paint();
+					},
+				});
+				if (signal.aborted) return;
+				shown = text;
+				paint();
+				status.hidden = true;
+				answer.hidden = false;
+				this.history.push({ role: 'user', content: question }, { role: 'assistant', content: text });
+				if (this.history.length > 8) this.history = this.history.slice(-8);
+				input.placeholder = 'Ask a follow-up';
+				const others = pages.filter((p) => p.url !== location.pathname).slice(0, 3);
+				if (others.length) {
+					sources.append('From: ');
+					others.forEach((p, i) => {
+						if (i) sources.append(', ');
+						const a = document.createElement('a');
+						a.href = p.url;
+						a.textContent = p.title;
+						sources.append(a);
+					});
+					sources.hidden = false;
+				}
+			} catch (e: any) {
+				if (signal.aborted) return;
+				answer.hidden = true;
+				status.textContent = MESSAGES[e?.code] || (e?.code && e.message) || 'Could not load the AI assistant. Check your connection and try again.';
+				status.classList.add('error');
+				status.hidden = false;
+			} finally {
+				if (!signal.aborted) submit.disabled = false;
+			}
+		}
+	}
+	if (!customElements.get('ask-ai')) customElements.define('ask-ai', AskAI);
+</script>
+
+<style>
+	/* The box takes the font and text color of the page it sits in.
+	   Set --ask-ai-accent, --ask-ai-accent-text and --ask-ai-radius on .ask-ai (or any parent) to restyle it. */
+	.ask-ai {
+		--_accent: var(--ask-ai-accent, #0b5fff);
+		--_accent-text: var(--ask-ai-accent-text, #fff);
+		--_radius: var(--ask-ai-radius, 0);
+		--_line: color-mix(in srgb, currentColor 30%, transparent);
+		display: block;
+		max-width: 40rem;
+		padding: 1rem;
+		border: 1px solid currentColor;
+		border-radius: var(--_radius);
+		font: inherit;
+		line-height: 1.5;
+	}
+	.ask-ai-title {
+		margin: 0 0 0.6rem;
+		font-weight: 600;
+	}
+	.ask-ai-form {
+		display: flex;
+		gap: 0.5rem;
+		margin: 0;
+	}
+	.ask-ai-form input {
+		flex: 1;
+		min-width: 0;
+		font: inherit;
+		padding: 0.55rem 0.7rem;
+		border: 1px solid currentColor;
+		border-radius: var(--_radius);
+		background: transparent;
+		color: inherit;
+	}
+	.ask-ai-form input:focus-visible {
+		outline: 2px solid var(--_accent);
+		outline-offset: 1px;
+	}
+	.ask-ai-form button {
+		font: inherit;
+		font-weight: 600;
+		padding: 0.55rem 1.1rem;
+		border: 1px solid var(--_accent);
+		border-radius: var(--_radius);
+		background: var(--_accent);
+		color: var(--_accent-text);
+		cursor: pointer;
+	}
+	.ask-ai-form button:focus-visible {
+		outline: 2px solid currentColor;
+		outline-offset: 2px;
+	}
+	.ask-ai-form button:disabled {
+		opacity: 0.6;
+		cursor: wait;
+	}
+	.ask-ai-note,
+	.ask-ai-status,
+	.ask-ai-sources,
+	.ask-ai-credit {
+		font-size: 0.875em;
+		opacity: 0.75;
+	}
+	.ask-ai-note {
+		margin: 0.6rem 0 0;
+		padding: 0.45rem 0.7rem;
+		border: 1px dashed var(--_line);
+	}
+	.ask-ai-status {
+		margin: 0.75rem 0 0;
+	}
+	.ask-ai-status.error {
+		opacity: 1;
+		color: #c2261f;
+	}
+	.ask-ai-answer {
+		margin: 0.75rem 0 0;
+		padding-inline-start: 0.8rem;
+		border-inline-start: 3px solid var(--_accent);
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+	}
+	.ask-ai-sources {
+		margin: 0.5rem 0 0;
+	}
+	.ask-ai-credit {
+		margin: 0.75rem 0 0;
+		font-size: 0.75em;
+	}
+	/* The answer's code and the source links are created in the browser, outside Astro's style scope. */
+	.ask-ai-credit a,
+	.ask-ai-sources :global(a) {
+		color: inherit;
+	}
+	.ask-ai-answer :global(code) {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.9em;
+	}
+	.ask-ai [hidden] {
+		display: none;
+	}
+</style>

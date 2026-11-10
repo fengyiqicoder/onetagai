@@ -16,7 +16,7 @@ function load(dataset, scriptSrc, lang) {
   return { api: ctx.onetagWidget, warnings };
 }
 const { api } = load({ key: "ot_test" }, "https://onetagai.com/widget.js");
-const { readConfig, pickLang, cut, buildBody, parseSSE, isDark, STRINGS, SYSTEM } = api._internal;
+const { readConfig, pickLang, pagePath, cut, buildBody, parseSSE, isDark, STRINGS, SYSTEM } = api._internal;
 const local = (v) => structuredClone(v);
 
 test("readConfig: attributes win over the URL query, and the URL alone is enough", () => {
@@ -58,6 +58,15 @@ test("pickLang", () => {
   assert.equal(pickLang("zhx"), "en");
   assert.equal(pickLang(""), "en");
   for (const lang of Object.keys(STRINGS)) assert.deepEqual(Object.keys(STRINGS[lang]), Object.keys(STRINGS.en));
+});
+
+test("pagePath: a hash route is part of the page, an in-page anchor is not", () => {
+  assert.equal(pagePath({ pathname: "/docs/", hash: "" }), "/docs/");
+  assert.equal(pagePath({ pathname: "/docs/", hash: "#install" }), "/docs/");
+  assert.equal(pagePath({ pathname: "/docs/", hash: "#/guide" }), "/docs/#/guide");
+  assert.equal(pagePath({ pathname: "/docs/", hash: "#/guide?id=install" }), "/docs/#/guide");
+  assert.equal(pagePath({ pathname: "/", hash: "#!/zh-cn/quickstart" }), "/#!/zh-cn/quickstart");
+  assert.equal(pagePath({ pathname: "/a" }), "/a");
 });
 
 test("cut never splits a surrogate pair", () => {

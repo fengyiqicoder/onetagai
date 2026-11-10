@@ -9,7 +9,7 @@ Add AI to any static site with one script tag. No backend, no API key in your co
 </script>
 ```
 
-[Get a free key](https://onetagai.com/#get-key) (email only, 1,000,000 tokens, works on any number of sites) · [Docs](https://onetagai.com/docs) · [llms.txt](https://onetagai.com/llms.txt)
+[Get a free key](https://onetagai.com/#get-key) (email only, 1,000,000 tokens a month, works on any number of sites) · [Docs](https://onetagai.com/docs) · [llms.txt](https://onetagai.com/llms.txt)
 
 This repository holds the parts of OneTag AI you can link to or copy: the browser SDK and the components built on it. The hosted API (`https://onetagai.com/v1/ask`) is not in here.
 
@@ -21,8 +21,10 @@ This repository holds the parts of OneTag AI you can link to or copy: the browse
 | `sdk/widget.js` | The page widget: a floating "ask this page" button and chat, no code. Independent of `v1.js`, shadow DOM, 7 KB gzipped. | `<script async src="https://onetagai.com/widget.js" data-key="…">`. Options: [docs](https://onetagai.com/docs#widget). |
 | `sdk/test/` | The SDK's tests (`node --test sdk/test/*.test.mjs`) and a smoke page. | |
 | `docs/llms.txt` | The whole API on one page, written for people and AI coding tools. | Paste it into your AI tool's context. |
+| `packages/onetag` | The same SDK as an npm package, with types: `import { ask } from "onetagai"`. | `npm install onetagai`. [README](packages/onetag/README.md). |
+| `packages/astro-onetag` | An Ask AI box for Astro sites: answers from the page, or from the whole site through Pagefind. | `npm install astro-onetag`, then `<AskAI />`. [README](packages/astro-onetag/README.md). |
 
-Coming next: `packages/astro-onetag`, an Astro integration for documentation sites ("ask the docs" with a build-time index, works without a key for search).
+For Starlight docs there is [starlight-onetag](https://github.com/fengyiqicoder/starlight-onetag), a plugin that adds Ask AI next to the search box. The npm packages answer on localhost without a key, on a shared demo key; a deployed site needs its own.
 
 ## onetag.ask in one minute
 
@@ -45,7 +47,7 @@ Options: `stream`, `json`, `system`, `maxTokens` (≤ 10000), `history`, `signal
 
 ## Plans
 
-- Free: $0, 1,000,000 tokens in total per account, any domain, curl included.
+- Free: $0, 1,000,000 tokens a month per account, reset on the 1st, any domain, curl included.
 - Pro: $9.9/month, 100,000,000 tokens a month, lock the key to your domain. [Upgrade](https://onetagai.com/#pro).
 
 ## 中文

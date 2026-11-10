@@ -1,4 +1,4 @@
-/*! OneTag AI SDK v1.1.0 | https://onetagai.com | onetag.ask(prompt, input?, options?) */
+/*! OneTag AI SDK v1.3.0 | https://onetagai.com | onetag.ask(prompt, input?, options?) */
 (() => {
   "use strict";
 
@@ -23,6 +23,10 @@
   const config = {
     key: data.key || "",
     endpoint: data.endpoint || SITE + "/v1/ask",
+    // A short slug naming the integration that sends the calls (a plugin or package name).
+    via: data.via || "",
+    // Pro keys only: the model that answers, by name (see /docs#models). Empty is the default model.
+    model: data.model || "",
   };
 
   class OneTagError extends Error {
@@ -64,6 +68,8 @@
   function configure(options = {}) {
     if (options.key !== undefined) config.key = options.key;
     if (options.endpoint !== undefined) config.endpoint = options.endpoint;
+    if (options.via !== undefined) config.via = options.via;
+    if (options.model !== undefined) config.model = options.model;
   }
 
   const isSvg = (s) => /^(data:)?image\/svg|\.svg([?#]|$)/i.test(s || "");
@@ -192,16 +198,19 @@
 
   async function ask(prompt, input, options) {
     const o = options || {};
-    if (!config.key || /^YOUR_/i.test(config.key)) {
+    // options.key and options.via are for packages built on the SDK: they send their own
+    // key and name with each call and leave the page's configuration alone.
+    const key = o.key || config.key;
+    if (!key || /^YOUR_/i.test(key)) {
       // A placeholder left by a template or an AI coding tool is reported like a missing key, with where to fix it.
-      throw new OneTagError("no_key", (config.key ? "OneTag AI key is still the placeholder " + config.key + ". " : "No OneTag AI key. ")
+      throw new OneTagError("no_key", (key ? "OneTag AI key is still the placeholder " + key + ". " : "No OneTag AI key. ")
         + "Get a free key (email only) at " + HOME + "/#get-key and put it in data-key on the script tag (or onetag.configure({key})).", 0);
     }
     const history = Array.isArray(o.history) ? o.history : [];
     // 20 per history message: the server's allowance for its role and framing.
     const budget = MAX_TEXT - len(prompt) - len(o.system) - history.reduce((n, m) => n + 20 + len(m && m.content), 0);
     const body = JSON.stringify({
-      key: config.key,
+      key,
       prompt,
       input: fit(await normalizeInput(input), budget),
       system: o.system,
@@ -209,6 +218,9 @@
       max_tokens: o.maxTokens,
       stream: !!o.stream,
       history: o.history,
+      via: o.via || config.via || undefined,
+      // options.model: null asks the default model on a page that set data-model.
+      model: (o.model !== undefined ? o.model : config.model) || undefined,
     });
     let response;
     try {
@@ -234,7 +246,7 @@
   }
 
   globalThis.onetag = {
-    version: "1.1.0",
+    version: "1.3.0",
     ask,
     configure,
     OneTagError,

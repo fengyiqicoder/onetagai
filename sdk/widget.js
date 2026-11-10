@@ -8,7 +8,7 @@
 // and the widget's do not touch. It does not need v1.js and does not define `onetag`.
 (function () {
   "use strict";
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
   const HOME = "https://onetagai.com";
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
   const MAX_TOKENS = 400;
@@ -71,6 +71,13 @@
       lang: get("lang"),
       launcher: get("launcher") !== "false",
     };
+  }
+
+  // The page the visitor is on. Hash routers (docsify, Vue hash mode) keep the route after
+  // "#/" or "#!/", up to a "?"; a plain "#section" is still the same page.
+  function pagePath(loc) {
+    const hash = String((loc && loc.hash) || "");
+    return String((loc && loc.pathname) || "") + (/^#!?\//.test(hash) ? hash.split("?")[0] : "");
   }
 
   // Cut to at most `budget` characters without splitting a surrogate pair.
@@ -261,7 +268,7 @@
     if (config.source) { try { node = doc.querySelector(config.source); } catch (e) { /* a bad selector falls back to the default */ } }
     node = node || doc.querySelector("main") || doc.querySelector('[role="main"]') || doc.body;
     const text = String(node.innerText || node.textContent || "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
-    return "Page title: " + doc.title + "\nPage URL: " + win.location.origin + win.location.pathname + "\n\n" + text;
+    return "Page title: " + doc.title + "\nPage URL: " + win.location.origin + pagePath(win.location) + "\n\n" + text;
   }
 
   function fail(code) { const e = new Error(code); e.code = code; return e; }
@@ -309,7 +316,8 @@
     busy = true;
     ui.send.disabled = true;
     ui.input.value = "";
-    if (historyPath !== win.location.pathname) { history = []; historyPath = win.location.pathname; }
+    const path = pagePath(win.location);
+    if (historyPath !== path) { history = []; historyPath = path; }
     const add = (cls, text) => { const p = el("p", { class: "msg " + cls, text }); ui.log.appendChild(p); ui.log.scrollTop = ui.log.scrollHeight; return p; };
     add("me", question);
     const answer = add("ai wait", "···");
@@ -341,7 +349,7 @@
     toggle,
     show,   // show / hide the floating button; the panel is still opened with open() or toggle()
     hide,
-    _internal: { readConfig, pickLang, cut, buildBody, parseSSE, isDark, STRINGS, SYSTEM },
+    _internal: { readConfig, pickLang, pagePath, cut, buildBody, parseSSE, isDark, STRINGS, SYSTEM },
   };
 
   if (usable) {

@@ -1,0 +1,32 @@
+{
+  "name": "onetagai",
+  "version": "1.3.0",
+  "description": "AI for static sites without a backend: ask(prompt, input) from the browser with a public key. No server, no secret in your code.",
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": ["index.js", "core.js", "index.d.ts", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node build.mjs --check && node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["ai", "llm", "static-site", "no-backend", "browser", "frontend", "chatbot", "summarize", "translate", "jamstack", "onetag", "onetagai"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=npm",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues"
+}
