@@ -1,0 +1,48 @@
+{
+  "name": "vitepress-onetag",
+  "version": "0.1.0",
+  "description": "llms.txt, llms-full.txt and an Ask AI box for VitePress sites, with one change to .vitepress/config. No backend.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    },
+    "./theme": {
+      "types": "./theme.d.ts",
+      "default": "./theme.js"
+    }
+  },
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "files": ["index.js", "index.d.ts", "theme.js", "theme.d.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["vitepress-plugin", "vitepress", "vitepress-theme", "llms.txt", "llms-full.txt", "ai", "ask-ai", "chatbot", "docs", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=vitepress-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/vitepress-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "static-llms-txt": "^0.1.0"
+  },
+  "peerDependencies": {
+    "vitepress": "^1.0.0",
+    "vue": "^3.2.0"
+  },
+  "peerDependenciesMeta": {
+    "vue": {
+      "optional": true
+    }
+  }
+}
