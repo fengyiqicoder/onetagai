@@ -40,7 +40,7 @@ const product = await onetag.ask('Extract {"name": string, "price": number}', do
 // Errors throw onetag.OneTagError with .code (quota_exceeded, rate_limited, …), .message and .status.
 ```
 
-Options: `stream`, `json`, `system`, `maxTokens` (≤ 1000), `history`, `signal`. Full reference in [docs/llms.txt](docs/llms.txt).
+Options: `stream`, `json`, `system`, `maxTokens` (≤ 10000), `history`, `signal`. Full reference in [docs/llms.txt](docs/llms.txt).
 
 ## Plans
 

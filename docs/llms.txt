@@ -38,7 +38,7 @@ The SDK tag is a classic script. Top-level `await` needs `<script type="module">
 - `options.stream`: `(delta) => {}`, called with each piece of text as it arrives; the promise still resolves with the full text.
 - `options.json`: `true` to get a parsed object back instead of text.
 - `options.system`: extra instructions for the model (persona, tone, rules).
-- `options.maxTokens`: answer length in tokens, default 500, max 1000.
+- `options.maxTokens`: answer length in tokens, default 500, max 10000.
 - `options.history`: earlier chat turns, `[{ role: "user" | "assistant", content: "..." }]`.
 - `options.signal`: an AbortSignal (`new AbortController().signal`); when it fires, the request stops and the promise rejects with code `aborted`.
 
@@ -85,7 +85,7 @@ Get JSON back:
 
 Error codes: bad_request (400), bad_key (401), domain_not_allowed (403), too_large (413), quota_exceeded (429), rate_limited (429), upstream (502), paused (503); from the SDK only: no_key, bad_input, bad_json, network, aborted.
 
-Limits: 1,000,000 tokens in total per free key (never reset) or 100,000,000 per calendar month (UTC) on Pro; 32,000 characters of text (the SDK trims long input to fit), 50 input parts, 100 history messages and one image up to 2 MB per call; answers up to 1,000 tokens (500 by default); 20 requests per minute per IP and 60 per key.
+Limits: 1,000,000 tokens in total per free key (never reset) or 100,000,000 per calendar month (UTC) on Pro; 32,000 characters of text (the SDK trims long input to fit), 50 input parts, 100 history messages and one image up to 2 MB per call; answers up to 10,000 tokens (500 by default); 20 requests per minute per IP and 60 per key.
 
 A Pro key locked to a domain works only from browser pages on that domain, its subdomains, or localhost; curl and servers are rejected with domain_not_allowed. When quota_exceeded comes back on a free key, the message carries the upgrade link (https://onetagai.com/#pro).
 
