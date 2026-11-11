@@ -12,7 +12,7 @@ import { ask } from "onetagai";
 const summary = await ask("Summarize this page in two sentences", document.querySelector("article"));
 ```
 
-It works on localhost right away, on a shared demo key. Before you deploy, get your own free key (email only, 1,000,000 tokens a month):
+It works on localhost right away, on a shared demo key. Before you deploy, get your own free key (email only, 1,000,000 tokens):
 
 ```sh
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}'

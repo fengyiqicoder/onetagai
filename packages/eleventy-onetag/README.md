@@ -44,7 +44,7 @@ Without a key the box uses a demo key that answers on localhost only. Get your o
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
 ```
 
-The key arrives in that inbox. Set it as the `ONETAG_KEY` environment variable in your build, or pass it as the `key` option. The key is public by design: it ends up in the built HTML, like an analytics ID. The free plan is 1,000,000 tokens a month with a hard cap. When it runs out the box says so, and no bill can appear.
+The key arrives in that inbox. Set it as the `ONETAG_KEY` environment variable in your build, or pass it as the `key` option. The key is public by design: it ends up in the built HTML, like an analytics ID. The free plan is 1,000,000 tokens, one time, with a hard cap. When it runs out the box says so, and no bill can appear.
 
 ## Options
 

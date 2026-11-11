@@ -48,7 +48,7 @@ function tag(options) {
 
 function warning() {
   return NAME + ": no OneTag AI key set. The Ask AI box uses the demo key, which answers on localhost only.\n" +
-    "  Get a free key (1,000,000 tokens a month), then set onetag.key in _config.yml or ONETAG_KEY:\n  " + SIGNUP;
+    "  Get a free key (1,000,000 tokens), then set onetag.key in _config.yml or ONETAG_KEY:\n  " + SIGNUP;
 }
 
 // Public address of the site root, including the subfolder in `root` (https://example.com/blog).

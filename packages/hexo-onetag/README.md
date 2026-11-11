@@ -36,7 +36,7 @@ onetag:
   key: ot_...
 ```
 
-Or set the `ONETAG_KEY` environment variable in your build. The key is public by design: it ends up in the built HTML, like an analytics ID. The free plan has 1,000,000 tokens a month, with a hard cap, so no bill can appear.
+Or set the `ONETAG_KEY` environment variable in your build. The key is public by design: it ends up in the built HTML, like an analytics ID. The free plan has 1,000,000 tokens, one time, with a hard cap, so no bill can appear.
 
 ## Options
 

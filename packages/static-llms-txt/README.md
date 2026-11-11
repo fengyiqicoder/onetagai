@@ -107,7 +107,7 @@ npx static-llms-txt ./dist --site https://example.com --ask-ai --key YOUR_ONETAG
 
 The box is [OneTag AI](https://onetagai.com/?ref=static-llms-txt)'s open-source `ask-docs.js`. It finds the pages that match the question in `llms-full.txt`, sends them with the question to the OneTag AI API, and shows the answer with links to the pages it used. There is no backend to run.
 
-The key is a site key. It is public by design, like an analytics ID, and it ends up in the built HTML. The free plan is 1,000,000 tokens a month with a hard cap: when it runs out the box says so, and no bill can appear. Get one without opening a browser:
+The key is a site key. It is public by design, like an analytics ID, and it ends up in the built HTML. The free plan is 1,000,000 tokens, one time, with a hard cap: when it runs out the box says so, and no bill can appear. Get one without opening a browser:
 
 ```sh
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}'

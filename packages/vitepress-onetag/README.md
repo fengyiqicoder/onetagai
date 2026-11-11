@@ -69,7 +69,7 @@ The box finds the `llms-full.txt` that plugin writes at the site base.
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
 ```
 
-Pass it as `key`, or set the `ONETAG_KEY` environment variable in your build. The key is a site key. It is public by design, like an analytics ID, and it ends up in the built HTML. The free plan is 1,000,000 tokens a month with a hard cap: when it runs out the box says so, and no bill can appear.
+Pass it as `key`, or set the `ONETAG_KEY` environment variable in your build. The key is a site key. It is public by design, like an analytics ID, and it ends up in the built HTML. The free plan is 1,000,000 tokens, one time, with a hard cap: when it runs out the box says so, and no bill can appear.
 
 ## Options
 

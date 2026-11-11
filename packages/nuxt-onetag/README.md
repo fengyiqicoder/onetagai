@@ -41,7 +41,7 @@ npx nuxi generate
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email":"you@example.com"}'
 ```
 
-Put the key in the `key` option or in the `ONETAG_KEY` environment variable. The key is public by design. It ends up in the built HTML, like an analytics ID. The free plan is 1,000,000 tokens a month with a hard cap, so no bill can appear.
+Put the key in the `key` option or in the `ONETAG_KEY` environment variable. The key is public by design. It ends up in the built HTML, like an analytics ID. The free plan is 1,000,000 tokens, one time, with a hard cap, so no bill can appear.
 
 ## Options
 

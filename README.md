@@ -9,7 +9,7 @@ Add AI to any static site with one script tag. No backend, no API key in your co
 </script>
 ```
 
-[Get a free key](https://onetagai.com/#get-key) (email only, 1,000,000 tokens a month, works on any number of sites) · [Docs](https://onetagai.com/docs) · [llms.txt](https://onetagai.com/llms.txt)
+[Get a free key](https://onetagai.com/#get-key) (email only, 1,000,000 tokens, works on any number of sites) · [Docs](https://onetagai.com/docs) · [llms.txt](https://onetagai.com/llms.txt)
 
 This repository holds the parts of OneTag AI you can link to or copy: the browser SDK and the components built on it. The hosted API (`https://onetagai.com/v1/ask`) is not in here.
 
@@ -48,7 +48,7 @@ Options: `stream`, `json`, `system`, `maxTokens` (≤ 10000), `history`, `signal
 
 ## Plans
 
-- Free: $0, 1,000,000 tokens a month per account, reset on the 1st, any domain, curl included.
+- Free: $0, 1,000,000 tokens in total per account, no monthly reset, any domain, curl included.
 - Pro: $9.9/month, 100,000,000 tokens a month, lock the key to your domain. [Upgrade](https://onetagai.com/#pro).
 
 ## 中文

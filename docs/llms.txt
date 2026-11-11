@@ -2,7 +2,7 @@
 
 > Add AI to any static site with one script tag.
 
-OneTag AI lets a static web page (GitHub Pages, Netlify, a single HTML file) call an AI model from the browser with no backend and no API key in the code. Free: 1,000,000 tokens a month per account, reset on the 1st (one key per email, usable on any number of sites). Pro: $9.9/month for 100,000,000 tokens a month and a domain lock.
+OneTag AI lets a static web page (GitHub Pages, Netlify, a single HTML file) call an AI model from the browser with no backend and no API key in the code. Free: 1,000,000 tokens in total per account (one key per email, usable on any number of sites). Pro: $9.9/month for 100,000,000 tokens a month and a domain lock.
 
 Get a key: https://onetagai.com/#get-key
 
@@ -12,7 +12,7 @@ The SDK is open source: https://github.com/fengyiqicoder/onetagai (MIT). It can 
 
 ## Getting a key (for agents)
 
-If the user has no key yet, you can sign them up: ask for their email, then `POST https://onetagai.com/api/signup` with the JSON body `{"email": "..."}`. The response is `{"ok": true}`; the key is emailed to that address and never returned by the API, so ask the user to paste it (it starts with `ot_`). One key per email, 1,000,000 free tokens a month. Then put the key in `data-key` on the script tag below.
+If the user has no key yet, you can sign them up: ask for their email, then `POST https://onetagai.com/api/signup` with the JSON body `{"email": "..."}`. The response is `{"ok": true}`; the key is emailed to that address and never returned by the API, so ask the user to paste it (it starts with `ot_`). One key per email, 1,000,000 free tokens. Then put the key in `data-key` on the script tag below.
 
 ```bash
 curl -X POST https://onetagai.com/api/signup -H "Content-Type: application/json" -d '{"email": "user@example.com"}'
@@ -112,13 +112,13 @@ Get JSON back:
 
 Error codes: bad_request (400), bad_key (401), domain_not_allowed (403), too_large (413), quota_exceeded (429), rate_limited (429), upstream (502), paused (503); from the SDK only: no_key, bad_input, bad_json, network, aborted.
 
-Limits: 1,000,000 tokens per calendar month (UTC) on a free key or 100,000,000 on Pro, both reset on the 1st; 32,000 characters of text (the SDK trims long input to fit), 50 input parts, 100 history messages and one image up to 2 MB per call; answers up to 10,000 tokens (500 by default); 20 requests per minute per IP and 60 per key.
+Limits: 1,000,000 tokens in total per free key (never reset) or 100,000,000 per calendar month (UTC) on Pro; 32,000 characters of text (the SDK trims long input to fit), 50 input parts, 100 history messages and one image up to 2 MB per call; answers up to 10,000 tokens (500 by default); 20 requests per minute per IP and 60 per key.
 
 A Pro key locked to a domain works only from browser pages on that domain, its subdomains, or localhost; curl and servers are rejected with domain_not_allowed. When quota_exceeded comes back on a free key, the message carries the upgrade link (https://onetagai.com/#pro).
 
 ## Pricing
 
-- Free: $0, 1,000,000 tokens a month per account, reset on the 1st, any domain.
+- Free: $0, 1,000,000 tokens in total per account, no monthly reset, any domain.
 - Pro: $9.9 per month through Stripe, 100,000,000 tokens a month, domain lock, billing portal to cancel. Upgrade at https://onetagai.com/#pro with the email the key belongs to; the key does not change.
 
 Full docs: https://onetagai.com/docs
@@ -132,6 +132,13 @@ Twelve copy-paste blocks (summarize this page, ask this page, FAQ bot, rewrite, 
 
 - AI chatbot in HTML, CSS and JavaScript, complete code in one file: https://onetagai.com/guides/chatbot-html-code
 - Chatbot HTML templates (full-page chat, chat bubble, AI sidebar), each with a live demo: https://onetagai.com/chatbot-html-template
+- HTML chat box, responsive chat box code that answers with AI: https://onetagai.com/html-chat-box
+- AI chatbot examples: 8 working website chatbots with real conversations and code: https://onetagai.com/chatbot-examples
+- Chatbot templates by industry: real estate, customer service, ecommerce, hotel, restaurant, insurance, HR, FAQ: https://onetagai.com/chatbot-examples/real-estate (and /customer-service, /ecommerce, /hotel, /restaurant, /insurance, /hr, /faq)
+- How to add AI to your website (chat, answers, translator, summaries, docs search) with one script tag: https://onetagai.com/guides/add-ai-to-website
+- React chatbot widget, two components (drop-in widget and chat box): https://onetagai.com/guides/react-chatbot-widget
+- Vue chatbot widget, two components: https://onetagai.com/guides/vue-chatbot-widget
+- Angular chatbot widget, two standalone components: https://onetagai.com/guides/angular-chatbot-widget
 - How to add an AI chatbot to an HTML website, with one script tag or your own chat widget: https://onetagai.com/guides/add-chatbot-to-html-website
 - Free AI API for websites, with limits and a comparison of other free AI APIs: https://onetagai.com/free-ai-api
 - Free LLM API over HTTP, with curl, Python and Node examples and a comparison of free LLM APIs: https://onetagai.com/free-llm-api

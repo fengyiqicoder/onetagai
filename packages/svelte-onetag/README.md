@@ -58,7 +58,7 @@ The key is public by design. It ends up in the built JavaScript, like an analyti
 <AskAI key={PUBLIC_ONETAG_KEY} />
 ```
 
-The free plan is 1,000,000 tokens a month with a hard cap, so no bill can appear.
+The free plan is 1,000,000 tokens, one time, with a hard cap, so no bill can appear.
 
 ## Options
 
