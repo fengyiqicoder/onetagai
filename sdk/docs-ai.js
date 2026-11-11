@@ -12,6 +12,9 @@
 //   explain    an "Explain this code" button under every code block
 //   summary    a "Summarize this page" button under the title of long pages
 //   selection  select any text on the page, click "Ask AI", get it explained in context
+//   search     an "Ask AI" row above the results of the site's own search, which hands what the
+//              reader typed to ask-docs.js. It needs ask-docs.js on the same page, and for now
+//              it knows the search box of Material for MkDocs only.
 //
 // It knows where the content and the code blocks are in Material for MkDocs, Zensical,
 // VitePress, Docusaurus and Starlight, and falls back to <main> and <pre> anywhere else.
@@ -20,7 +23,7 @@
 //
 // Options, each a data-* attribute or a query parameter on the script URL:
 //   key        your OneTag AI key (on localhost a shared demo key answers without one)
-//   features   comma list of the tools to turn on: explain, summary, selection (default: none)
+//   features   comma list of the tools to turn on: explain, summary, selection, search (default: none)
 //   lang       language of the answers (default: the page's own language)
 //   lines      smallest code block that gets a button, in lines (default 1)
 //   chars      shortest page that gets a summary button, in characters (default 1500)
@@ -36,7 +39,7 @@
 // Every piece of interface lives in a shadow root, so the site's CSS and its own do not touch.
 (function () {
   "use strict";
-  const VERSION = "0.3.1";
+  const VERSION = "0.4.1";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -54,21 +57,25 @@
     selection: "A reader selected part of a documentation page and wants it explained. Explain the selected text in the context of the page: what it means, why it matters here, and an example if that helps. Plain words, under 120 words, no headings. If they ask a follow-up, answer it from the page.",
   };
   const TOKENS = { explain: 600, summary: 400, selection: 400 };
+  const FEATURES = ["explain", "summary", "selection", "search"];   // search sends nothing itself: ask-docs.js answers
 
   // Where things are in each docs framework. `content` is tried in order; `code` matches the
-  // wrapper a theme puts around <pre>; `group` is a tab set that shows one wrapper at a time.
+  // wrapper a theme puts around <pre>; `group` is a tab set that shows one wrapper at a time;
+  // `search` is the site's own search box: its input, the element the row goes in front of,
+  // the checkbox that opens and closes it, and the measures that line the row up with the results.
   const PRESETS = {
-    material: { content: [".md-content__inner", ".md-content", '[role="main"]'], code: "div.highlight", group: "", file: ".filename" },
-    vitepress: { content: [".vp-doc"], code: 'div[class*="language-"]', group: ".vp-code-group", file: "" },
-    docusaurus: { content: [".theme-doc-markdown", "article .markdown"], code: ".theme-code-block", group: "", file: '[class*="codeBlockTitle"]' },
-    starlight: { content: [".sl-markdown-content"], code: ".expressive-code", group: "", file: "figcaption .title" },
-    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: "" },
+    material: { content: [".md-content__inner", ".md-content", '[role="main"]'], code: "div.highlight", group: "", file: ".filename",
+      search: { input: ".md-search__input", before: ".md-search-result__meta", toggle: '[data-md-toggle="search"]', css: ".row{font-size:.8rem;padding:.7em .8rem}@media (min-width:60em){.row{padding-inline-start:.5rem;gap:.5rem}.row svg{width:1.2rem;height:1.2rem}}" } },
+    vitepress: { content: [".vp-doc"], code: 'div[class*="language-"]', group: ".vp-code-group", file: "", search: null },
+    docusaurus: { content: [".theme-doc-markdown", "article .markdown"], code: ".theme-code-block", group: "", file: '[class*="codeBlockTitle"]', search: null },
+    starlight: { content: [".sl-markdown-content"], code: ".expressive-code", group: "", file: "figcaption .title", search: null },
+    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: "", search: null },
   };
   const NOISE = "script, style, svg, button, .headerlink, .header-anchor, .hash-link, .sr-only, [" + NAME + "]";
 
   const STRINGS = {
     en: {
-      explain: "Explain this code", summary: "Summarize this page", ask: "Ask AI",
+      explain: "Explain this code", summary: "Summarize this page", ask: "Ask AI", searchAsk: "Ask AI: \u201c%s\u201d",
       readingCode: "Reading the code…", readingPage: "Reading the page…",
       close: "Close", hide: "Hide", summaryTitle: "Summary", follow: "Ask a follow-up", send: "Ask",
       byExplain: "Explained by AI.", bySummary: "Summarized by AI from this page.", bySelection: "Explained by AI from this page.", powered: "Powered by OneTag AI",
@@ -84,7 +91,7 @@
       fail: "No answer came back. Try again in a few seconds.",
     },
     "zh-Hans": {
-      explain: "解释这段代码", summary: "总结本页", ask: "问 AI",
+      explain: "解释这段代码", summary: "总结本页", ask: "问 AI", searchAsk: "问 AI：\u201c%s\u201d",
       readingCode: "正在读这段代码…", readingPage: "正在读这一页…",
       close: "关闭", hide: "收起", summaryTitle: "摘要", follow: "接着问", send: "提问",
       byExplain: "由 AI 解释。", bySummary: "由 AI 根据本页内容总结。", bySelection: "由 AI 根据本页内容解释。", powered: "由 OneTag AI 提供",
@@ -100,7 +107,7 @@
       fail: "没有收到回答，请过几秒再试。",
     },
     "zh-Hant": {
-      explain: "解釋這段程式碼", summary: "總結本頁", ask: "問 AI",
+      explain: "解釋這段程式碼", summary: "總結本頁", ask: "問 AI", searchAsk: "問 AI：「%s」",
       readingCode: "正在讀這段程式碼…", readingPage: "正在讀這一頁…",
       close: "關閉", hide: "收起", summaryTitle: "摘要", follow: "接著問", send: "提問",
       byExplain: "由 AI 解釋。", bySummary: "由 AI 根據本頁內容總結。", bySelection: "由 AI 根據本頁內容解釋。", powered: "由 OneTag AI 提供",
@@ -146,9 +153,9 @@
     const ref = get("ref").toLowerCase();
     const color = get("color").replace(/^(?=[0-9a-f]{3,8}$)/i, "#");
     const preset = get("preset").toLowerCase();
-    const wanted = get("features").toLowerCase().split(/[\s,]+/).filter((f) => f in RULES);
+    const wanted = get("features").toLowerCase().split(/[\s,]+/).filter((f) => FEATURES.includes(f));
     const features = {};
-    for (const f of Object.keys(RULES)) features[f] = wanted.includes(f);   // each one is off until it is named
+    for (const f of FEATURES) features[f] = wanted.includes(f);   // each one is off until it is named
     return {
       key: /^YOUR_|…|\.\.\./i.test(key) ? "" : key,   // a placeholder left in is no key
       ref: /^[a-z0-9][a-z0-9._-]{0,39}$/.test(ref) ? ref : "",
@@ -224,6 +231,24 @@
       const kept = JSON.parse(raw || "null");
       return kept && kept.h === h && typeof kept.t === "string" ? kept.t : "";
     } catch (e) { return ""; }
+  }
+
+  // What the search row would ask: the query the reader typed, when it is long enough to be a
+  // question and ask-docs.js is on the page to answer it. Empty means no row.
+  function searchQuery(value, canAsk) {
+    const q = String(value || "").replace(/\s+/g, " ").trim();
+    return canAsk && q.length >= 2 ? q : "";
+  }
+
+  // Where an arrow key moves the focus, so that the row sits between the search input and the
+  // first result. `from` is "input", "row" or "first" (the first result). Empty means the key
+  // is left to the theme.
+  function arrowTo(key, from, shown) {
+    if (!shown) return "";
+    if (key === "ArrowDown" && from === "input") return "row";
+    if (key === "ArrowUp" && from === "row") return "input";
+    if (key === "ArrowUp" && from === "first") return "row";
+    return "";
   }
 
   function homeUrl(via) { return HOME + "/?ref=" + (via || "docs-ai"); }
@@ -853,12 +878,97 @@
   // ---------------------------------------------------------------------------------------
   // Start
 
+  // ---------------------------------------------------------------------------------------
+  // Search: a row above the site's own results that hands the query to ask-docs.js
+
+  const SEARCH_CSS = [
+    ":host{margin:0}",
+    ":host([hidden]){display:none!important}",
+    ".row{display:flex;align-items:center;gap:.6em;width:100%;text-align:start;line-height:1.5;padding:.7em 1em;border:0;border-bottom:1px solid var(--line);background:none}",
+    ".row:hover,.row:focus-visible{background:var(--soft);color:var(--a)}",
+    ".row:focus-visible{outline:2px solid var(--a);outline-offset:-2px}",
+    ".row svg{flex:none;color:var(--a)}",
+    ".q{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+  ].join("");
+
+  let searchUi = null;
+  let searchNoted = false;
+  function searchNote(text) {
+    if (searchNoted) return;
+    searchNoted = true;
+    if (win.console && win.console.warn) win.console.warn("OneTag AI docs-ai.js: " + text);
+  }
+  function canAsk() { return !!(win.onetagAskDocs && typeof win.onetagAskDocs.ask === "function"); }
+
+  function updateSearch() {
+    const open = !searchUi.toggle || searchUi.toggle.checked;   // a closed search leaves no row behind for Tab to land on
+    const q = open ? searchQuery(searchUi.input.value, canAsk()) : "";
+    searchUi.host.hidden = !q;
+    if (q) searchUi.label.textContent = S.searchAsk.replace("%s", () => q);
+  }
+
+  function askSearch() {
+    const q = searchQuery(searchUi.input.value, canAsk());
+    if (!q) return;
+    const toggle = searchUi.toggle;
+    if (toggle && toggle.checked) toggle.click();   // close the site's search the way its own controls do
+    win.onetagAskDocs.ask(q, { from: "search" });   // counted as ask-docs-<site>-search (ask-docs.js 1.1.3 and later)
+  }
+
+  function moveSearch(e, from) {
+    const to = e.isComposing ? "" : arrowTo(e.key, from, !searchUi.host.hidden);
+    if (!to) return;
+    e.preventDefault();
+    e.stopPropagation();   // the theme's own arrow handling would move on from here
+    (to === "row" ? searchUi.button : searchUi.input).focus();
+  }
+
+  function mountSearch() {
+    const where = preset().search;
+    if (!where) return searchNote("the search row knows the search box of Material for MkDocs only, so it is not shown on this site.");
+    const input = doc.querySelector(where.input);
+    const before = doc.querySelector(where.before);
+    if (!input || !before) {
+      // Zensical shares Material's content markup but has a search box of its own.
+      if (late) searchNote("the search row knows the search box of Material for MkDocs only and found none on this page, so it is not shown.");
+      return;
+    }
+    if (late && !canAsk()) searchNote("the search row needs ask-docs.js on the same page: " + HOME + "/docs#ask-docs");
+    if (!searchUi) {
+      const made = makeHost("search", SEARCH_CSS + (where.css || ""));
+      const label = el("span", { class: "q" });
+      const button = el("button", { type: "button", class: "row", onclick: askSearch, onkeydown: (e) => moveSearch(e, "row") }, [icon(SPARK), label]);
+      made.root.append(button);
+      searchUi = { host: made.host, button, label, input: null, list: null, toggle: null };
+    }
+    const list = before.parentNode;
+    if (searchUi.list !== list) {
+      searchUi.list = list;
+      list.addEventListener("keydown", (e) => { if (e.target === list.querySelector("a[href]")) moveSearch(e, "first"); });
+    }
+    const toggle = where.toggle ? doc.querySelector(where.toggle) : null;
+    if (searchUi.toggle !== toggle) {
+      searchUi.toggle = toggle;
+      if (toggle) toggle.addEventListener("change", updateSearch);
+    }
+    if (searchUi.input !== input) {
+      searchUi.input = input;
+      input.addEventListener("input", updateSearch);
+      input.addEventListener("focus", updateSearch);
+      input.addEventListener("keydown", (e) => moveSearch(e, "input"));
+      if (input.form) input.form.addEventListener("reset", () => win.setTimeout(updateSearch, 0));   // the clear button fires no input event
+    }
+    if (searchUi.host.nextElementSibling !== before) before.parentNode.insertBefore(searchUi.host, before);
+    updateSearch();
+  }
+
   let late = false;   // Docusaurus: do not touch the content before React has hydrated it
 
   function mount() {
     if (preset() === PRESETS.docusaurus && !late && doc.documentElement.getAttribute("data-has-hydrated") !== "true") return;
     sweep();
     if (leaveSelection) leaveSelection();
+    if (config.features.search) mountSearch();
     const root = contentRoot();
     if (!root) return;
     if (config.features.explain) mountExplain(root);
@@ -891,7 +1001,7 @@
   win.onetagDocsAi = {
     version: VERSION,
     mount,
-    _internal: { readConfig, detectPreset, viaFor, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT, DEMO_KEY },
+    _internal: { readConfig, detectPreset, viaFor, searchQuery, arrowTo, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT, DEMO_KEY },
   };
 
   if (doc.body) start();

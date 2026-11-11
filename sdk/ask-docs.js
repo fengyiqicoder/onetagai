@@ -22,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.2";
+  const VERSION = "1.1.3";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -385,13 +385,21 @@
   // The request for one question. The passages take the room the question, the rules and
   // the history leave (20 per history message is the server's allowance for its framing);
   // the oldest turns go first when the room runs out.
-  function buildBody(config, key, question, history, pages, via) {
+  // The name a request is counted under. Another script that asks on the reader's behalf,
+  // as in ask(question, { from: "search" }), adds one short word to it, so that its
+  // questions can be told apart from the ones typed into the box.
+  function viaFrom(via, from) {
+    const word = /^[a-z0-9]{1,16}$/.test(String(from || "")) ? "-" + from : "";
+    return via.slice(0, 40 - word.length) + word;
+  }
+
+  function buildBody(config, key, question, history, pages, via, from) {
     const system = config.rules || RULES;
     const prompt = question + "\n\n(Reply in the same language as the question above.)";
     let kept = history.slice(-KEEP);
     const room = () => MAX_TEXT - prompt.length - system.length - kept.reduce((n, m) => n + 20 + m.content.length, 0);
     while (kept.length && room() < 6000) kept = kept.slice(2);
-    const body = { key, prompt, system, max_tokens: MAX_TOKENS, stream: true, via: config.ref || via || "ask-docs" };
+    const body = { key, prompt, system, max_tokens: MAX_TOKENS, stream: true, via: viaFrom(config.ref || via || "ask-docs", from) };
     let budget = Math.min(MAX_CONTEXT, room() - 200);
     const input = [];
     for (const p of pages) {
@@ -1012,7 +1020,8 @@
     ui.status.hidden = !text;
   }
 
-  async function ask(question) {
+  async function ask(question, options) {
+    const from = options && options.from;
     open();
     if (!ui) return;
     if (controller) controller.abort();
@@ -1032,7 +1041,7 @@
       const previous = history.length ? history[history.length - 2].content : "";
       found = await retrieve(question, previous, signal);
       if (signal.aborted) return;
-      const text = await request(buildBody(config, key, question, history, found.pages, "ask-docs-" + found.kind), (soFar) => {
+      const text = await request(buildBody(config, key, question, history, found.pages, "ask-docs-" + found.kind, from), (soFar) => {
         if (signal.aborted) return;
         setStatus("");
         paint(soFar);
@@ -1078,8 +1087,8 @@
     version: VERSION,
     open,
     close: closeBox,
-    ask,            // ask("How do I deploy?") opens the box and answers
-    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, loadMkdocs, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
+    ask,            // ask("How do I deploy?") opens the box and answers; ask(q, { from: "search" }) also says where it came from
+    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, loadMkdocs, llmsEntries, ancestors, toPages, sourcesOf, buildBody, viaFrom, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
   };
 
   // Ctrl+/ or ⌘+/ opens and closes the box.

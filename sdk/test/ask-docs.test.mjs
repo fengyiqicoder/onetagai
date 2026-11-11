@@ -234,6 +234,18 @@ test("toPages keeps within the budget; sourcesOf lists a page once, three at mos
   assert.deepEqual(local(sourcesOf(all)).map((s) => s.title), ["A › X", "B", "C"]);
 });
 
+test("viaFrom: a question asked by another script is counted under its own name", () => {
+  const { viaFrom } = api._internal;
+  assert.equal(viaFrom("ask-docs-mkdocs", "search"), "ask-docs-mkdocs-search");
+  assert.equal(viaFrom("ask-docs-mkdocs", undefined), "ask-docs-mkdocs");
+  assert.equal(viaFrom("ask-docs-mkdocs", "Search box!"), "ask-docs-mkdocs");          // not a short plain word: left out
+  assert.equal(viaFrom("a".repeat(40), "search"), "a".repeat(33) + "-search");         // the server takes 40 characters
+  const config = readConfig({ key: "ot_k" }, "");
+  assert.equal(buildBody(config, "ot_k", "q", [], [], "ask-docs-mkdocs", "search").via, "ask-docs-mkdocs-search");
+  const mine = readConfig({ key: "ot_k", ref: "my-theme" }, "");
+  assert.equal(buildBody(mine, "ot_k", "q", [], [], "ask-docs-mkdocs", "search").via, "my-theme-search");
+});
+
 test("buildBody: passages as input parts, the via label, and the 32,000 limit", () => {
   const config = readConfig({ key: "ot_k" }, "");
   const pages = [{ title: "Deploy", url: "https://d.test/deploy/", text: "Use gh-deploy." }, { title: "No link", url: "", text: "Text." }];

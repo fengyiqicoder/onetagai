@@ -24,7 +24,7 @@ test("readConfig: the script URL alone is enough", () => {
   const c = readConfig({}, "https://onetagai.com/docs-ai.js?key=ot_url&ref=zensical&features=explain,selection&lang=de&lines=3&chars=800&color=ff6600");
   assert.equal(c.key, "ot_url");
   assert.equal(c.ref, "zensical");
-  assert.deepEqual(plain(c.features), { explain: true, summary: false, selection: true });
+  assert.deepEqual(plain(c.features), { explain: true, summary: false, selection: true, search: false });
   assert.equal(c.lang, "de");
   assert.equal(c.lines, 3);
   assert.equal(c.chars, 800);
@@ -40,7 +40,7 @@ test("readConfig: endpoint points the requests somewhere else, for local testing
 test("readConfig: data attributes win over the URL, and every feature is off until it is named", () => {
   const c = readConfig({ key: "ot_attr" }, "https://onetagai.com/docs-ai.js?key=ot_url");
   assert.equal(c.key, "ot_attr");
-  assert.deepEqual(plain(c.features), { explain: false, summary: false, selection: false });
+  assert.deepEqual(plain(c.features), { explain: false, summary: false, selection: false, search: false });
   assert.equal(c.lines, 1);
   assert.equal(c.chars, 1500);
   assert.equal(c.preset, "");
@@ -52,15 +52,15 @@ test("readConfig: bad values are dropped and a placeholder key is no key", () =>
   assert.equal(c.ref, "");
   assert.equal(c.color, "");
   assert.equal(c.preset, "");
-  assert.deepEqual(plain(c.features), { explain: false, summary: false, selection: false });
+  assert.deepEqual(plain(c.features), { explain: false, summary: false, selection: false, search: false });
   assert.equal(c.lines, 1);
   assert.equal(c.chars, 1500);
 });
 
 test("readConfig: features are turned on one by one, in a data attribute or the URL", () => {
-  assert.deepEqual(plain(readConfig({ features: "summary" }, "").features), { explain: false, summary: true, selection: false });
-  assert.deepEqual(plain(readConfig({ features: "Explain, summary selection" }, "").features), { explain: true, summary: true, selection: true });
-  assert.deepEqual(plain(readConfig({}, "https://onetagai.com/docs-ai.js?features=selection").features), { explain: false, summary: false, selection: true });
+  assert.deepEqual(plain(readConfig({ features: "summary" }, "").features), { explain: false, summary: true, selection: false, search: false });
+  assert.deepEqual(plain(readConfig({ features: "Explain, summary selection" }, "").features), { explain: true, summary: true, selection: true, search: false });
+  assert.deepEqual(plain(readConfig({}, "https://onetagai.com/docs-ai.js?features=selection").features), { explain: false, summary: false, selection: true, search: false });
 });
 
 test("start: with no feature turned on nothing is mounted and the console says how to turn one on", () => {
@@ -355,4 +355,38 @@ test("leftPage: a selection card belongs to the page it was opened on", () => {
   assert.equal(more.leftPage("/guide/", "/guide/", true), false);    // same page, same content element
   assert.equal(more.leftPage("/guide/", "/install/", true), true);   // moved on, the framework kept the element
   assert.equal(more.leftPage("/guide/", "/guide/", false), true);    // same address, the content element was swapped
+});
+
+test("readConfig: search is turned on by name like the other tools", () => {
+  assert.deepEqual(plain(readConfig({ features: "search" }, "").features), { explain: false, summary: false, selection: false, search: true });
+  assert.equal(readConfig({}, "https://onetagai.com/docs-ai.js?features=explain,search").features.search, true);
+});
+
+test("searchQuery: the row is offered for a query worth asking, when ask-docs.js is there to answer", () => {
+  const { searchQuery } = api._internal;
+  assert.equal(searchQuery("  deploy   to  pages ", true), "deploy to pages");
+  assert.equal(searchQuery("部署", true), "部署");
+  assert.equal(searchQuery("a", true), "");
+  assert.equal(searchQuery("   ", true), "");
+  assert.equal(searchQuery(undefined, true), "");
+  assert.equal(searchQuery("deploy", false), "");
+});
+
+test("presets: Material says where its search box is, the others do not yet", () => {
+  assert.equal(PRESETS.material.search.input, ".md-search__input");
+  assert.equal(PRESETS.material.search.before, ".md-search-result__meta");   // inside the results, where the theme sets the text colour
+  assert.equal(PRESETS.material.search.toggle, '[data-md-toggle="search"]');
+  for (const name of ["vitepress", "docusaurus", "starlight", "generic"]) assert.equal(PRESETS[name].search, null);
+});
+
+test("arrowTo: the row sits between the search input and the first result for the arrow keys", () => {
+  const { arrowTo } = api._internal;
+  assert.equal(arrowTo("ArrowDown", "input", true), "row");
+  assert.equal(arrowTo("ArrowUp", "row", true), "input");
+  assert.equal(arrowTo("ArrowUp", "first", true), "row");
+  assert.equal(arrowTo("ArrowDown", "row", true), "");      // the theme's own handling moves on to the first result
+  assert.equal(arrowTo("ArrowDown", "first", true), "");
+  assert.equal(arrowTo("Enter", "input", true), "");
+  assert.equal(arrowTo("ArrowDown", "input", false), "");   // no row, nothing changes
+  assert.equal(arrowTo("ArrowUp", "first", false), "");
 });
