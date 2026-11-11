@@ -1,7 +1,7 @@
 {
   "name": "onetagai",
-  "version": "1.2.0",
-  "description": "AI for static sites without a backend: ask(prompt, input) from the browser with a public key. No server, no secret in your code.",
+  "version": "1.2.1",
+  "description": "AI for static sites and front-end apps without a backend: chatbots, summaries and translation from the browser with a public key. No server, no secret in your code.",
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
@@ -19,7 +19,7 @@
     "test": "node build.mjs --check && node --test test/*.test.mjs",
     "prepublishOnly": "npm test"
   },
-  "keywords": ["ai", "llm", "static-site", "no-backend", "browser", "frontend", "chatbot", "summarize", "translate", "jamstack", "onetag", "onetagai"],
+  "keywords": ["ai", "llm", "static-site", "no-backend", "browser", "frontend", "chatbot", "summarize", "translate", "jamstack", "react", "vue", "angular", "chatbot widget", "chat widget", "chat box", "ai chatbot", "website chatbot", "onetag", "onetagai"],
   "license": "MIT",
   "author": "OneTag AI (https://onetagai.com)",
   "homepage": "https://onetagai.com/?ref=npm",

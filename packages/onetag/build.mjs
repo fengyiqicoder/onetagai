@@ -33,8 +33,12 @@ if (process.argv.includes("--check")) {
     console.error("core.js is out of date: run `node build.mjs`");
     process.exit(1);
   }
-  if (JSON.parse(read("package.json")).version !== version) {
-    console.error(`package.json version differs from the SDK version ${version}`);
+  // Same major.minor as the SDK. The patch number may be ahead of it: a release that
+  // changes only the README or package.json has no SDK version of its own.
+  const pkg = JSON.parse(read("package.json")).version.split(".").map(Number);
+  const sdk = version.split(".").map(Number);
+  if (pkg[0] !== sdk[0] || pkg[1] !== sdk[1] || pkg[2] < sdk[2]) {
+    console.error(`package.json version does not match the SDK version ${version}`);
     process.exit(1);
   }
 } else {
