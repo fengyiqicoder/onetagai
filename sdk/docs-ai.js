@@ -29,7 +29,7 @@
 //   content    CSS selector of the content element, when it is not found on its own
 //   code       CSS selector of code block wrappers, when they are not found on their own
 //   color      accent colour as hex (default: the theme's own)
-//   ref        a short name for this site in your OneTag AI usage, shown as docs-ai-<ref>
+//   ref        a short name for the theme or plugin that adds this script; its requests are tagged docs-ai-<ref>
 //              (default: the framework, as in docs-ai-vitepress)
 //   endpoint   where requests are sent (default https://onetagai.com/v1/ask), for local testing
 //   cache      off stops summaries being kept in the reader's browser (default: on)
