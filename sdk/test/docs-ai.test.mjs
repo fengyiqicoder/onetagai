@@ -372,11 +372,74 @@ test("searchQuery: the row is offered for a query worth asking, when ask-docs.js
   assert.equal(searchQuery("deploy", false), "");
 });
 
-test("presets: Material says where its search box is, the others do not yet", () => {
-  assert.equal(PRESETS.material.search.input, ".md-search__input");
-  assert.equal(PRESETS.material.search.before, ".md-search-result__meta");   // inside the results, where the theme sets the text colour
-  assert.equal(PRESETS.material.search.toggle, '[data-md-toggle="search"]');
-  for (const name of ["vitepress", "docusaurus", "starlight", "generic"]) assert.equal(PRESETS[name].search, null);
+test("searches: the row knows four search boxes, and Material's is found the way it was", () => {
+  const { SEARCHES } = api._internal;
+  assert.deepEqual(plain(SEARCHES.map((s) => s.name)), ["material", "zensical", "vitepress", "docsearch"]);
+  const material = SEARCHES[0];
+  assert.equal(material.input, ".md-search__input");
+  assert.equal(material.before, ".md-search-result__meta");   // inside the results, where the theme sets the text colour
+  assert.equal(material.toggle, '[data-md-toggle="search"]');
+  assert.ok(!material.virtual);                                // Material moves the real focus through its results
+  for (const name of Object.keys(PRESETS)) assert.equal("search" in PRESETS[name], false);   // one table, not two
+});
+
+test("searchCame: a search box drawn into a container the page already had is seen", () => {
+  const { searchCame } = api._internal;
+  const el = (cls, inner) => ({ nodeType: 1, matches: (sel) => sel.split(", ").includes("." + cls), querySelector: (sel) => (inner && sel.split(", ").includes("." + inner)) || null });
+  const rec = (added) => ({ type: "childList", target: {}, addedNodes: added, removedNodes: [] });
+  assert.equal(searchCame([rec([el("DocSearch-Modal")])]), true);                      // Docusaurus draws the modal into a div it keeps
+  assert.equal(searchCame([rec([el("DocSearch-Container", "DocSearch-Modal")])]), true);
+  assert.equal(searchCame([rec([el("VPLocalSearchBox")])]), true);
+  assert.equal(searchCame([rec([el("carousel-slide")])]), false);
+  assert.equal(searchCame([rec([{ nodeType: 3 }])]), false);
+  assert.equal(searchCame([{ type: "attributes", target: {} }]), false);
+  assert.equal(searchCame([rec([el("x")]), rec([el("DocSearch-Modal")])]), true);
+});
+
+test("searches: the other three are boxes of their own, with the focus kept in the input", () => {
+  const { SEARCHES } = api._internal;
+  const by = (name) => SEARCHES.find((s) => s.name === name);
+  assert.equal(by("zensical").shadow, "dialog");               // inside a shadow root, where class names are minified
+  assert.equal(by("zensical").input, 'input[role="combobox"]');
+  assert.equal(by("zensical").before, '[role="status"]');
+  assert.equal(by("vitepress").root, ".VPLocalSearchBox");
+  assert.equal(by("vitepress").before, ".results");
+  assert.equal(by("docsearch").root, ".DocSearch-Modal");
+  assert.equal(by("docsearch").input, ".DocSearch-Input");
+  // Inside the list that scrolls, so the modal keeps the height its own CSS worked out. That
+  // list is only drawn once there is a query, so the box counts as found before it is there.
+  assert.equal(by("docsearch").before, ".DocSearch-Dropdown > :not([data-onetag-docs-ai])");
+  assert.equal(by("docsearch").anchorLater, true);
+  assert.ok(!by("vitepress").anchorLater && !by("zensical").anchorLater);
+  for (const name of ["zensical", "vitepress", "docsearch"]) {
+    assert.equal(by(name).virtual, true);
+    assert.ok(by(name).close, name + " says how it is closed");
+    assert.ok(!by(name).toggle);
+  }
+});
+
+test("searchAt: where the input stands in a search that keeps the focus in it", () => {
+  const { searchAt } = api._internal;
+  assert.equal(searchAt([]), "none");                    // no results: the row is the only thing under the input
+  assert.equal(searchAt([true, false, false]), "top");   // the first result is the selected one
+  assert.equal(searchAt([false, true, false]), "input");
+  assert.equal(searchAt([false, false, true]), "input");
+  assert.equal(searchAt([false, false]), "input");       // nothing selected: the keys are left to the site
+});
+
+test("arrowTo: in a search that keeps the focus in the input, the row is one step above the first result", () => {
+  const { arrowTo } = api._internal;
+  assert.equal(arrowTo("ArrowUp", "top", true, true), "row");
+  assert.equal(arrowTo("ArrowDown", "top", true, true), "");      // down from the first result is the site's own move
+  assert.equal(arrowTo("ArrowUp", "none", true, true), "row");
+  assert.equal(arrowTo("ArrowDown", "none", true, true), "row");
+  assert.equal(arrowTo("ArrowUp", "input", true, true), "");      // further down the list every key is the site's
+  assert.equal(arrowTo("ArrowDown", "input", true, true), "");
+  assert.equal(arrowTo("ArrowDown", "row", true, true), "input"); // back to the input, where the first result is still selected
+  assert.equal(arrowTo("ArrowUp", "row", true, true), "input");
+  assert.equal(arrowTo("Enter", "row", true, true), "");
+  assert.equal(arrowTo("ArrowUp", "top", false, true), "");       // no row, nothing changes
+  assert.equal(arrowTo("ArrowDown", "none", false, true), "");
 });
 
 test("arrowTo: the row sits between the search input and the first result for the arrow keys", () => {

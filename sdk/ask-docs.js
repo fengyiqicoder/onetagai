@@ -22,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.3";
+  const VERSION = "1.1.4";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -942,7 +942,8 @@
     if (!ui) { ui = build(); restore(); }
     if (ui.host.parentNode !== doc.body) doc.body.appendChild(ui.host);
     const spot = placement();
-    const float = !!(spot && spot.float);
+    // VitePress's search fills a phone's screen, and the floating button would lie on its results.
+    const float = !!(spot && spot.float) && !doc.querySelector(".VPLocalSearchBox");
     if (ui.launcher.hidden === float) ui.launcher.hidden = !float;
     if (spot && spot.parent) {
       if (!trigger) trigger = buildTrigger();

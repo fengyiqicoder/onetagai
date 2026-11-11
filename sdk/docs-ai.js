@@ -13,8 +13,9 @@
 //   summary    a "Summarize this page" button under the title of long pages
 //   selection  select any text on the page, click "Ask AI", get it explained in context
 //   search     an "Ask AI" row above the results of the site's own search, which hands what the
-//              reader typed to ask-docs.js. It needs ask-docs.js on the same page, and for now
-//              it knows the search box of Material for MkDocs only.
+//              reader typed to ask-docs.js. It needs ask-docs.js on the same page, and knows
+//              the search boxes of Material for MkDocs, Zensical, VitePress (local search)
+//              and Algolia DocSearch, which is the one Docusaurus uses.
 //
 // It knows where the content and the code blocks are in Material for MkDocs, Zensical,
 // VitePress, Docusaurus and Starlight, and falls back to <main> and <pre> anywhere else.
@@ -39,7 +40,7 @@
 // Every piece of interface lives in a shadow root, so the site's CSS and its own do not touch.
 (function () {
   "use strict";
-  const VERSION = "0.4.1";
+  const VERSION = "0.5.1";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -60,17 +61,36 @@
   const FEATURES = ["explain", "summary", "selection", "search"];   // search sends nothing itself: ask-docs.js answers
 
   // Where things are in each docs framework. `content` is tried in order; `code` matches the
-  // wrapper a theme puts around <pre>; `group` is a tab set that shows one wrapper at a time;
-  // `search` is the site's own search box: its input, the element the row goes in front of,
-  // the checkbox that opens and closes it, and the measures that line the row up with the results.
+  // wrapper a theme puts around <pre>; `group` is a tab set that shows one wrapper at a time.
   const PRESETS = {
-    material: { content: [".md-content__inner", ".md-content", '[role="main"]'], code: "div.highlight", group: "", file: ".filename",
-      search: { input: ".md-search__input", before: ".md-search-result__meta", toggle: '[data-md-toggle="search"]', css: ".row{font-size:.8rem;padding:.7em .8rem}@media (min-width:60em){.row{padding-inline-start:.5rem;gap:.5rem}.row svg{width:1.2rem;height:1.2rem}}" } },
-    vitepress: { content: [".vp-doc"], code: 'div[class*="language-"]', group: ".vp-code-group", file: "", search: null },
-    docusaurus: { content: [".theme-doc-markdown", "article .markdown"], code: ".theme-code-block", group: "", file: '[class*="codeBlockTitle"]', search: null },
-    starlight: { content: [".sl-markdown-content"], code: ".expressive-code", group: "", file: "figcaption .title", search: null },
-    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: "", search: null },
+    material: { content: [".md-content__inner", ".md-content", '[role="main"]'], code: "div.highlight", group: "", file: ".filename" },
+    vitepress: { content: [".vp-doc"], code: 'div[class*="language-"]', group: ".vp-code-group", file: "" },
+    docusaurus: { content: [".theme-doc-markdown", "article .markdown"], code: ".theme-code-block", group: "", file: '[class*="codeBlockTitle"]' },
+    starlight: { content: [".sl-markdown-content"], code: ".expressive-code", group: "", file: "figcaption .title" },
+    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: "" },
   };
+  // The search boxes the row knows, tried in this order. A site's search does not follow from
+  // its content markup: Zensical writes Material's, and DocSearch sits on any framework.
+  //   root     the box, when it is not in the page from the start (`shadow`: inside the shadow
+  //            root of an element in <body>, where class names are minified and only ARIA holds)
+  //   input    where the reader types, and `before`, the element the row goes in front of
+  //   toggle   the checkbox that opens and closes Material's search; `close`, what to click to
+  //            close the others
+  //   virtual  the focus stays in the input and the arrow keys only mark a result as selected
+  //   css      the measures that line the row up with the results
+  const SEARCHES = [
+    { name: "material", input: ".md-search__input", before: ".md-search-result__meta", toggle: '[data-md-toggle="search"]',
+      css: ".row{font-size:.8rem;padding:.7em .8rem}@media (min-width:60em){.row{padding-inline-start:.5rem;gap:.5rem}.row svg{width:1.2rem;height:1.2rem}}" },
+    { name: "zensical", shadow: "dialog", input: 'input[role="combobox"]', before: '[role="status"]', close: "button", virtual: true, css: "" },
+    { name: "vitepress", root: ".VPLocalSearchBox", input: ".search-input", before: ".results", close: ".backdrop", virtual: true, css: "" },
+    // The row goes inside the list that scrolls, so the modal keeps the height its own CSS worked out.
+    // That list is only drawn once there is a query: the box counts as found before it is there.
+    { name: "docsearch", root: ".DocSearch-Modal", input: ".DocSearch-Input", before: ".DocSearch-Dropdown > :not([data-onetag-docs-ai])", anchorLater: true, close: ".DocSearch-Close, .DocSearch-Cancel", virtual: true,
+      css: ":host{display:block;margin:0 calc(var(--docsearch-spacing,12px)*-1)}" },
+  ];
+  // A search that is built when the reader opens it leaves only its button in the page
+  // (VitePress 2 gave its button a class of its own).
+  const SEARCH_LATER = ".DocSearch-Button, .VPNavBarSearchButton";
   const NOISE = "script, style, svg, button, .headerlink, .header-anchor, .hash-link, .sr-only, [" + NAME + "]";
 
   const STRINGS = {
@@ -240,15 +260,43 @@
     return canAsk && q.length >= 2 ? q : "";
   }
 
+  // Where the input stands in a search that keeps the focus in it. `selected` says, for each
+  // result in order, whether it is the selected one: "none" when there are no results, "top"
+  // when the first one is selected, and "input" anywhere else.
+  function searchAt(selected) {
+    if (!selected.length) return "none";
+    return selected[0] ? "top" : "input";
+  }
+
   // Where an arrow key moves the focus, so that the row sits between the search input and the
   // first result. `from` is "input", "row" or "first" (the first result). Empty means the key
   // is left to the theme.
-  function arrowTo(key, from, shown) {
+  //
+  // A `virtual` search keeps the focus in its input and selects the first result by itself, so
+  // there the row is one step above that result: up from it ("top") reaches the row, and
+  // either arrow on the row goes back to the input. With no results ("none") the row is the
+  // only thing under the input and both arrows reach it.
+  function arrowTo(key, from, shown, virtual) {
     if (!shown) return "";
+    const up = key === "ArrowUp", down = key === "ArrowDown";
+    if (virtual) {
+      if (from === "top") return up ? "row" : "";
+      if (from === "none") return up || down ? "row" : "";
+      if (from === "row") return up || down ? "input" : "";
+      return "";
+    }
     if (key === "ArrowDown" && from === "input") return "row";
     if (key === "ArrowUp" && from === "row") return "input";
     if (key === "ArrowUp" && from === "first") return "row";
     return "";
+  }
+
+  // Whether a batch of page changes drew one of the search boxes that come and go. Docusaurus
+  // draws its modal into a container it keeps, away from the content, so worthMount lets it pass.
+  const SEARCH_ROOTS = SEARCHES.filter((s) => s.root).map((s) => s.root).join(", ");
+  function searchCame(records) {
+    return Array.from(records).some((r) => r.type === "childList" && Array.from(r.addedNodes || []).some((n) =>
+      n.nodeType === 1 && !!((n.matches && n.matches(SEARCH_ROOTS)) || (n.querySelector && n.querySelector(SEARCH_ROOTS)))));
   }
 
   function homeUrl(via) { return HOME + "/?ref=" + (via || "docs-ai"); }
@@ -900,6 +948,21 @@
   }
   function canAsk() { return !!(win.onetagAskDocs && typeof win.onetagAskDocs.ask === "function"); }
 
+  // The search box on this page, with what the row needs from it.
+  function findSearch() {
+    for (const kind of SEARCHES) {
+      const roots = kind.shadow
+        ? Array.from(doc.body.children).map((n) => n.shadowRoot && n.shadowRoot.querySelector(kind.shadow))
+        : [kind.root ? doc.querySelector(kind.root) : doc];
+      for (const root of roots) {
+        const input = root && root.querySelector(kind.input);
+        const before = input && root.querySelector(kind.before);
+        if (before || (input && kind.anchorLater)) return { kind, root, input, before };
+      }
+    }
+    return null;
+  }
+
   function updateSearch() {
     const open = !searchUi.toggle || searchUi.toggle.checked;   // a closed search leaves no row behind for Tab to land on
     const q = open ? searchQuery(searchUi.input.value, canAsk()) : "";
@@ -907,46 +970,72 @@
     if (q) searchUi.label.textContent = S.searchAsk.replace("%s", () => q);
   }
 
+  // Close the site's search the way its own controls do.
+  function closeSearch() {
+    const toggle = searchUi.toggle;
+    if (toggle) { if (toggle.checked) toggle.click(); return; }
+    const closer = searchUi.kind.close && searchUi.root.querySelector(searchUi.kind.close);
+    if (closer) closer.click();
+  }
+
   function askSearch() {
     const q = searchQuery(searchUi.input.value, canAsk());
     if (!q) return;
-    const toggle = searchUi.toggle;
-    if (toggle && toggle.checked) toggle.click();   // close the site's search the way its own controls do
+    closeSearch();
     win.onetagAskDocs.ask(q, { from: "search" });   // counted as ask-docs-<site>-search (ask-docs.js 1.1.3 and later)
   }
 
   function moveSearch(e, from) {
-    const to = e.isComposing ? "" : arrowTo(e.key, from, !searchUi.host.hidden);
-    if (!to) return;
+    if (e.isComposing) return;
+    const virtual = !!searchUi.kind.virtual;
+    if (virtual && from === "input") {
+      const options = Array.from(searchUi.root.querySelectorAll('[role="option"]'));
+      from = searchAt(options.map((o) => o.getAttribute("aria-selected") === "true"));
+    }
+    const to = arrowTo(e.key, from, !searchUi.host.hidden, virtual);
+    if (!to) {
+      // The site listens for Enter on the whole window and would open the selected result too.
+      if (virtual && from === "row" && (e.key === "Enter" || e.key === " ")) e.stopPropagation();
+      return;
+    }
     e.preventDefault();
-    e.stopPropagation();   // the theme's own arrow handling would move on from here
+    e.stopPropagation();   // the site's own arrow handling would move on from here
     (to === "row" ? searchUi.button : searchUi.input).focus();
   }
 
   function mountSearch() {
-    const where = preset().search;
-    if (!where) return searchNote("the search row knows the search box of Material for MkDocs only, so it is not shown on this site.");
-    const input = doc.querySelector(where.input);
-    const before = doc.querySelector(where.before);
-    if (!input || !before) {
-      // Zensical shares Material's content markup but has a search box of its own.
-      if (late) searchNote("the search row knows the search box of Material for MkDocs only and found none on this page, so it is not shown.");
+    const found = findSearch();
+    if (!found) {
+      if (late && !doc.querySelector(SEARCH_LATER)) searchNote("the search row knows the search boxes of Material for MkDocs, Zensical, VitePress (local search) and Algolia DocSearch, and found none of them on this page, so it is not shown.");
       return;
     }
     if (late && !canAsk()) searchNote("the search row needs ask-docs.js on the same page: " + HOME + "/docs#ask-docs");
+    const { kind, root, input, before } = found;
+    if (searchUi && searchUi.kind !== kind) { searchUi.host.remove(); if (searchUi.watch) searchUi.watch.disconnect(); searchUi = null; }
     if (!searchUi) {
-      const made = makeHost("search", SEARCH_CSS + (where.css || ""));
+      const made = makeHost("search", SEARCH_CSS + (kind.css || ""));
       const label = el("span", { class: "q" });
       const button = el("button", { type: "button", class: "row", onclick: askSearch, onkeydown: (e) => moveSearch(e, "row") }, [icon(SPARK), label]);
       made.root.append(button);
-      searchUi = { host: made.host, button, label, input: null, list: null, toggle: null };
+      searchUi = { kind, host: made.host, button, label, root: null, input: null, list: null, toggle: null, watch: null };
     }
-    const list = before.parentNode;
-    if (searchUi.list !== list) {
+    if (searchUi.root !== root) {
+      searchUi.root = root;
+      if (searchUi.watch) searchUi.watch.disconnect();
+      searchUi.watch = null;
+      // A box of its own redraws without the page's content changing, and one inside a shadow
+      // root is out of sight of the observer on <body>.
+      if (root !== doc && win.MutationObserver) {
+        searchUi.watch = new win.MutationObserver(mountSearch);
+        searchUi.watch.observe(root, { childList: true, subtree: true });
+      }
+    }
+    const list = before && before.parentNode;
+    if (!kind.virtual && list && searchUi.list !== list) {
       searchUi.list = list;
       list.addEventListener("keydown", (e) => { if (e.target === list.querySelector("a[href]")) moveSearch(e, "first"); });
     }
-    const toggle = where.toggle ? doc.querySelector(where.toggle) : null;
+    const toggle = kind.toggle ? doc.querySelector(kind.toggle) : null;
     if (searchUi.toggle !== toggle) {
       searchUi.toggle = toggle;
       if (toggle) toggle.addEventListener("change", updateSearch);
@@ -955,10 +1044,10 @@
       searchUi.input = input;
       input.addEventListener("input", updateSearch);
       input.addEventListener("focus", updateSearch);
-      input.addEventListener("keydown", (e) => moveSearch(e, "input"));
+      input.addEventListener("keydown", (e) => moveSearch(e, "input"), !!kind.virtual);   // ahead of the site's own listener on the same input
       if (input.form) input.form.addEventListener("reset", () => win.setTimeout(updateSearch, 0));   // the clear button fires no input event
     }
-    if (searchUi.host.nextElementSibling !== before) before.parentNode.insertBefore(searchUi.host, before);
+    if (before && searchUi.host.nextElementSibling !== before) before.parentNode.insertBefore(searchUi.host, before);
     updateSearch();
   }
 
@@ -990,7 +1079,8 @@
     if (win.MutationObserver) {
       let queued = 0;
       const observer = new win.MutationObserver((records) => {
-        if (queued || doc.readyState !== "complete" || !worthMount(records, contentRoot())) return;
+        if (queued || doc.readyState !== "complete") return;
+        if (!worthMount(records, contentRoot()) && !(config.features.search && searchCame(records))) return;
         queued = win.setTimeout(() => { queued = 0; mount(); }, 120);   // client-side navigation swaps the content
       });
       observer.observe(doc.body, { childList: true, subtree: true });
@@ -1001,7 +1091,7 @@
   win.onetagDocsAi = {
     version: VERSION,
     mount,
-    _internal: { readConfig, detectPreset, viaFor, searchQuery, arrowTo, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT, DEMO_KEY },
+    _internal: { readConfig, detectPreset, viaFor, searchQuery, searchAt, searchCame, arrowTo, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, SEARCHES, RULES, MAX_TEXT, DEMO_KEY },
   };
 
   if (doc.body) start();
