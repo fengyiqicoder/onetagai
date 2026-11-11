@@ -1,6 +1,6 @@
 {
   "name": "nuxt-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nuxt module: writes llms.txt and llms-full.txt for prerendered Nuxt sites and adds an Ask AI box that answers from your own pages. No backend.",
   "type": "module",
   "exports": {

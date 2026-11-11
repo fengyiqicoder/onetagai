@@ -1,6 +1,6 @@
 {
   "name": "astro-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An Ask AI box for Astro sites: visitors ask, the answer is written from your page or your whole site. Static output, no backend, no API key in your code.",
   "type": "module",
   "exports": {

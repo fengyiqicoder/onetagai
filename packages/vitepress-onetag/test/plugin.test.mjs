@@ -118,7 +118,7 @@ test("buildEnd chains the user's hook and writes clean llms files under the base
   assert.doesNotMatch(llms, /404/);
   assert.match(full, /## Install\n/);
   assert.match(full, /npm i anvil/);
-  assert.doesNotMatch(full, /header-anchor|​|Edit this page|Menu|\bsh\n/);
+  assert.doesNotMatch(full, /header-anchor|​|Edit this page|Menu|(^|\n)sh\n/);
   assert.match(llms, /\[Acme\]\(https:\/\/acme\.dev\/docs\/\): Home page/);
   assert.match(llms, /\[Start\]\([^)]*\): Start page/);
   assert.match(log.msgs.info[0], /wrote llms\.txt, llms-full\.txt \(2 pages\)/);

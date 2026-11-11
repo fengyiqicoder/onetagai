@@ -1,6 +1,6 @@
 {
   "name": "static-llms-txt",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Write llms.txt and llms-full.txt for any static site from the HTML it already built. Works after Eleventy, Hugo, Jekyll, Astro, Gatsby, Docusaurus or plain HTML. No API key.",
   "main": "./index.cjs",
   "module": "./index.mjs",

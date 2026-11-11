@@ -1,6 +1,6 @@
 {
   "name": "hexo-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "llms.txt, llms-full.txt and an Ask AI box for Hexo sites. The llms files need no key; the box answers from your own posts and pages, with no backend.",
   "main": "index.js",
   "files": ["index.js", "lib/", "README.md", "LICENSE"],

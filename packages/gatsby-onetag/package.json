@@ -1,6 +1,6 @@
 {
   "name": "gatsby-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Gatsby plugin that writes llms.txt and llms-full.txt at build time and adds an Ask AI box that answers from your site. No backend.",
   "main": "./index.js",
   "files": ["index.js", "gatsby-node.js", "gatsby-ssr.js", "core.js", "README.md", "LICENSE"],

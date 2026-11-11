@@ -1,0 +1,75 @@
+# Publishes one package of this repository to npm with trusted publishing (OIDC).
+# No npm token is stored anywhere.
+# Release: bump "version" in packages/<folder>/package.json, commit, then push a tag named
+# <npm name>@<version>, for example astro-onetag@0.1.1.
+# Run it by hand from the Actions tab, giving the npm name, to rehearse without publishing.
+name: Publish to npm
+
+on:
+  push:
+    tags: ['*@*']
+  workflow_dispatch:
+    inputs:
+      package:
+        description: npm name of the package to rehearse (nothing is published)
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Find the package
+        id: pkg
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            name="${GITHUB_REF_NAME%@*}"
+            tagged="${GITHUB_REF_NAME##*@}"
+          else
+            name="$PACKAGE"
+            tagged=""
+          fi
+          dir=""
+          for f in packages/*/package.json; do
+            if [ "$(FILE="$f" node -p "require('./' + process.env.FILE).name")" = "$name" ]; then dir="$(dirname "$f")"; fi
+          done
+          [ -n "$dir" ] || { echo "no package named '$name' under packages/"; exit 1; }
+          version="$(FILE="$dir/package.json" node -p "require('./' + process.env.FILE).version")"
+          if [ -n "$tagged" ] && [ "$tagged" != "$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match $dir/package.json ($name@$version)"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "spec=$name@$version" >> "$GITHUB_OUTPUT"
+          echo "$name@$version in $dir"
+      - name: Install
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: npm install --no-audit --no-fund
+      - name: Test
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: npm test
+      - name: Show what will be published
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: npm --version && npm pack --dry-run
+      - name: Publish
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        env:
+          SPEC: ${{ steps.pkg.outputs.spec }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            npm publish
+          elif [ -n "$(npm view "$SPEC" version 2>/dev/null)" ]; then
+            echo "::notice::Rehearsal only. $SPEC is already on npm, so bump package.json before tagging."
+          else
+            npm publish --dry-run
+          fi

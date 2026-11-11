@@ -1,6 +1,6 @@
 {
   "name": "onetagai",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "AI for static sites and front-end apps without a backend: chatbots, summaries and translation from the browser with a public key. No server, no secret in your code.",
   "type": "module",
   "main": "./index.js",

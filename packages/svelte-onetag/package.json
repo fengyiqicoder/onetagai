@@ -1,6 +1,6 @@
 {
   "name": "svelte-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Svelte component that adds an Ask AI box to your site. It answers from your own pages, with no backend. Pairs with static-llms-txt for llms.txt on SvelteKit static sites.",
   "type": "module",
   "svelte": "./dist/index.js",

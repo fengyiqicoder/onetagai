@@ -1,6 +1,6 @@
 {
   "name": "eleventy-onetag",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Eleventy plugin that writes llms.txt and llms-full.txt from your built site and adds an Ask AI box that answers from it. No backend.",
   "main": "./index.cjs",
   "module": "./index.mjs",
