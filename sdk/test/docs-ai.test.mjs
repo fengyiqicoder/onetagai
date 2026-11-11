@@ -350,3 +350,9 @@ test("worthMount: our own widgets and changes outside the content do not start a
   assert.equal(more.worthMount([{ type: "attributes", target: body }], root), true);
   assert.equal(more.worthMount([rec(root, [{ nodeType: 3 }], [])], root), true);   // text nodes count as content
 });
+
+test("leftPage: a selection card belongs to the page it was opened on", () => {
+  assert.equal(more.leftPage("/guide/", "/guide/", true), false);    // same page, same content element
+  assert.equal(more.leftPage("/guide/", "/install/", true), true);   // moved on, the framework kept the element
+  assert.equal(more.leftPage("/guide/", "/guide/", false), true);    // same address, the content element was swapped
+});

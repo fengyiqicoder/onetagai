@@ -36,7 +36,7 @@
 // Every piece of interface lives in a shadow root, so the site's CSS and its own do not touch.
 (function () {
   "use strict";
-  const VERSION = "0.3.0";
+  const VERSION = "0.3.1";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -534,6 +534,13 @@
     });
   }
 
+  // The selection card floats over the page, so navigation does not take it away by itself.
+  // It has left its page when the address changed or the content element it read is gone.
+  function leftPage(openedPath, path, rootConnected) {
+    return openedPath !== path || !rootConnected;
+  }
+  let leaveSelection = null;   // set by setupSelection
+
   // Send one request and stream the answer into `answer`. Returns the text, or null when stopped.
   async function run(body, answer, status, reading, signal) {
     answer.replaceChildren();
@@ -775,7 +782,7 @@
       const block = elm.closest("p, li, td, pre, blockquote, dd, h2, h3, h4") || elm;
       const rects = range.getClientRects();
       const rect = rects[rects.length - 1] || range.getBoundingClientRect();
-      return { root, text, paragraph: String(block.textContent || "").trim().slice(0, 1500), rect };
+      return { root, path: win.location.pathname, text, paragraph: String(block.textContent || "").trim().slice(0, 1500), rect };
     }
 
     function place(node, rect, below) {
@@ -828,6 +835,10 @@
       history = history.slice(-KEEP);
     }
 
+    leaveSelection = () => {
+      if (!card.hidden && picked && leftPage(picked.path, win.location.pathname, picked.root.isConnected)) hideCard();
+    };
+
     doc.addEventListener("selectionchange", check);
     doc.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
@@ -847,6 +858,7 @@
   function mount() {
     if (preset() === PRESETS.docusaurus && !late && doc.documentElement.getAttribute("data-has-hydrated") !== "true") return;
     sweep();
+    if (leaveSelection) leaveSelection();
     const root = contentRoot();
     if (!root) return;
     if (config.features.explain) mountExplain(root);
@@ -879,7 +891,7 @@
   win.onetagDocsAi = {
     version: VERSION,
     mount,
-    _internal: { readConfig, detectPreset, viaFor, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT, DEMO_KEY },
+    _internal: { readConfig, detectPreset, viaFor, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT, DEMO_KEY },
   };
 
   if (doc.body) start();
