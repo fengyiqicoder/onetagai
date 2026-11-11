@@ -12,6 +12,7 @@
 // the browser reads the full-text index the site already publishes, picks the passages that
 // match, and sends them with the question to OneTag AI. The index is found on its own:
 //   - MkDocs and Material for MkDocs: search/search_index.json
+//   - Zensical: search.json
 //   - Pagefind (Starlight, Docusaurus with docusaurus-onetag, or any site built with
 //     `npx pagefind --site <dir>`): pagefind/
 //   - llms-full.txt
@@ -21,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.1";
+  const VERSION = "1.1.2";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -543,9 +544,11 @@
   }
 
   async function loadMkdocs(base, url) {
-    const json = await getJson(url || base + "search/search_index.json");
-    if (!json || !Array.isArray(json.docs)) throw new Error("not a MkDocs index");
-    return localSearch("mkdocs", base, mkdocsEntries(json.docs, base));
+    // MkDocs writes search/search_index.json with "docs"; Zensical writes search.json with "items".
+    const json = url ? await getJson(url) : await getJson(base + "search/search_index.json").catch(() => getJson(base + "search.json"));
+    const docs = json && (Array.isArray(json.docs) ? json.docs : json.items);
+    if (!Array.isArray(docs)) throw new Error("not a MkDocs index");
+    return localSearch("mkdocs", base, mkdocsEntries(docs, base));
   }
 
   async function loadLlms(base, url) {
@@ -603,7 +606,7 @@
     if (config.index) {
       try {
         const url = new URL(config.index, here).href;
-        if (/\.json(\?|$)/.test(url)) return await loadMkdocs(new URL("../", url).href, url);
+        if (/\.json(\?|$)/.test(url)) return await loadMkdocs(new URL(/search_index\.json/.test(url) ? "../" : "./", url).href, url);
         if (/\.txt(\?|$)/.test(url)) return await loadLlms(new URL("./", url).href, url);
         return await loadPagefind(url.replace(/\/?(pagefind\/?)?$/, "/"));
       } catch (e) {
@@ -1076,7 +1079,7 @@
     open,
     close: closeBox,
     ask,            // ask("How do I deploy?") opens the box and answers
-    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
+    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, loadMkdocs, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
   };
 
   // Ctrl+/ or ⌘+/ opens and closes the box.

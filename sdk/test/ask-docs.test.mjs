@@ -151,6 +151,51 @@ test("mkdocsEntries: the built-in plugin's whole-page copy is not counted twice"
   assert.equal(material[0].text, "Every option is a query parameter. key, label, position, color.");
 });
 
+// Zensical 0.1.1 writes search.json at the site root: { config, items: [{ location, level, title, text, path, tags }] }.
+const ZENSICAL = {
+  config: { lang: ["en"] },
+  items: [
+    { location: "", level: 1, title: "Ask AI for MkDocs", text: "<p>A free Ask AI box.</p>", path: ["Home"], tags: [] },
+    { location: "faq/", level: 1, title: "FAQ", text: "", path: ["FAQ"], tags: [] },
+    { location: "faq/#what-it-costs", level: 2, title: "What it costs", text: "<p>A question costs about 3,000 tokens.</p>", path: ["FAQ"], tags: [] },
+  ],
+};
+
+function withFetch(files) {
+  const asked = [];
+  const ctx = {
+    document: { currentScript: { dataset: { key: "ot_test" }, src: "https://onetagai.com/ask-docs.js" }, body: null, documentElement: { lang: "en" }, addEventListener() {} },
+    location: { hostname: "docs.example.com", href: "https://docs.example.com/faq/" },
+    console: { warn() {} }, URL, TextDecoder,
+    fetch: async (url) => { asked.push(url); return url in files ? { ok: true, json: async () => files[url] } : { ok: false, status: 404 }; },
+  };
+  ctx.window = ctx; vm.createContext(ctx); vm.runInContext(src, ctx);
+  return { loadMkdocs: ctx.onetagAskDocs._internal.loadMkdocs, asked };
+}
+
+test("loadMkdocs: a Zensical site has no search/search_index.json, its search.json is read instead", async () => {
+  const { loadMkdocs, asked } = withFetch({ "https://docs.example.com/search.json": ZENSICAL });
+  const index = await loadMkdocs("https://docs.example.com/");
+  assert.deepEqual(asked, ["https://docs.example.com/search/search_index.json", "https://docs.example.com/search.json"]);
+  assert.equal(index.kind, "mkdocs");
+  const hits = local(await index.search(queryTerms("what does a question cost")));
+  assert.equal(hits[0].url, "https://docs.example.com/faq/#what-it-costs");
+  assert.equal(hits[0].title, "FAQ › What it costs");
+  assert.equal(hits[0].text, "A question costs about 3,000 tokens.");
+});
+
+test("loadMkdocs: MkDocs is asked once, and a file that is neither shape is refused", async () => {
+  const docs = [{ location: "faq/", title: "FAQ", text: "A question costs about 3,000 tokens." }];
+  const mk = withFetch({ "https://docs.example.com/search/search_index.json": { docs } });
+  assert.equal((await mk.loadMkdocs("https://docs.example.com/")).kind, "mkdocs");
+  assert.deepEqual(mk.asked, ["https://docs.example.com/search/search_index.json"]);
+  const given = withFetch({ "https://docs.example.com/search.json": ZENSICAL });
+  assert.equal((await given.loadMkdocs("https://docs.example.com/", "https://docs.example.com/search.json")).kind, "mkdocs");
+  assert.deepEqual(given.asked, ["https://docs.example.com/search.json"]);
+  const other = withFetch({ "https://docs.example.com/search.json": { pages: [] } });
+  await assert.rejects(other.loadMkdocs("https://docs.example.com/"), /not a MkDocs index/);
+});
+
 test("llmsEntries: one entry per heading, links from a Source line, fences left alone", () => {
   const text = [
     "# Install", "Source: https://d.test/install/", "", "Run pip.", "", "```", "# not a heading", "```", "",
