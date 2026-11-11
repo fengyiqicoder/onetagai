@@ -22,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.4";
+  const VERSION = "1.1.5";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -551,9 +551,13 @@
     return out;
   }
 
-  async function loadMkdocs(base, url) {
+  async function loadMkdocs(base, url, generator) {
     // MkDocs writes search/search_index.json with "docs"; Zensical writes search.json with "items".
-    const json = url ? await getJson(url) : await getJson(base + "search/search_index.json").catch(() => getJson(base + "search.json"));
+    // A page that says it was made by Zensical is asked for its own file first, so that the
+    // reader's console does not show a 404 for the other one.
+    const files = ["search/search_index.json", "search.json"];
+    if (/^zensical/.test(generator || "")) files.reverse();
+    const json = url ? await getJson(url) : await getJson(base + files[0]).catch(() => getJson(base + files[1]));
     const docs = json && (Array.isArray(json.docs) ? json.docs : json.items);
     if (!Array.isArray(docs)) throw new Error("not a MkDocs index");
     return localSearch("mkdocs", base, mkdocsEntries(docs, base));
@@ -622,10 +626,10 @@
         return PAGE;
       }
     }
-    if (h.mkdocs) { const got = await loadMkdocs(h.mkdocs).catch(() => null); if (got) return got; }
+    if (h.mkdocs) { const got = await loadMkdocs(h.mkdocs, "", h.generator).catch(() => null); if (got) return got; }
     if (h.pagefind) { const got = await loadPagefind(h.pagefind).catch(() => null); if (got) return got; }
     const bases = ancestors(here, 6);
-    if (!h.mkdocs && /mkdocs|zensical/.test(h.generator)) { const got = await nearest(bases, (b) => loadMkdocs(b)); if (got) return got; }
+    if (!h.mkdocs && /mkdocs|zensical/.test(h.generator)) { const got = await nearest(bases, (b) => loadMkdocs(b, "", h.generator)); if (got) return got; }
     const pfBase = await nearest(bases.filter((b) => b !== h.pagefind), probePagefind);
     if (pfBase) { const got = await loadPagefind(pfBase).catch(() => null); if (got) return got; }
     return (await nearest(bases, (b) => loadLlms(b))) || PAGE;

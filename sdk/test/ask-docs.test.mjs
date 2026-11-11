@@ -184,6 +184,13 @@ test("loadMkdocs: a Zensical site has no search/search_index.json, its search.js
   assert.equal(hits[0].text, "A question costs about 3,000 tokens.");
 });
 
+test("loadMkdocs: a page that says it is Zensical's is asked for search.json first, and only for that", async () => {
+  const { loadMkdocs, asked } = withFetch({ "https://docs.example.com/search.json": ZENSICAL });
+  const index = await loadMkdocs("https://docs.example.com/", "", "zensical-0.1.1");
+  assert.deepEqual(asked, ["https://docs.example.com/search.json"]);
+  assert.equal(index.kind, "mkdocs");
+});
+
 test("loadMkdocs: MkDocs is asked once, and a file that is neither shape is refused", async () => {
   const docs = [{ location: "faq/", title: "FAQ", text: "A question costs about 3,000 tokens." }];
   const mk = withFetch({ "https://docs.example.com/search/search_index.json": { docs } });
