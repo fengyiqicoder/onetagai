@@ -1,0 +1,38 @@
+{
+  "name": "docusaurus-onetag",
+  "version": "0.1.0",
+  "description": "Docusaurus plugin that writes llms.txt and llms-full.txt at build time and adds an Ask AI box that answers from your docs. No backend.",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
+  },
+  "files": ["index.js", "index.d.ts", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": ["docusaurus", "docusaurus-plugin", "llms.txt", "llms-full.txt", "ai", "ask-ai", "chatbot", "search", "onetag"],
+  "license": "MIT",
+  "author": "OneTag AI (https://onetagai.com)",
+  "homepage": "https://onetagai.com/?ref=docusaurus-onetag",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fengyiqicoder/onetagai.git",
+    "directory": "packages/docusaurus-onetag"
+  },
+  "bugs": "https://github.com/fengyiqicoder/onetagai/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@docusaurus/utils-validation": "^3.0.0",
+    "static-llms-txt": "^0.1.1"
+  },
+  "peerDependencies": {
+    "@docusaurus/core": "^3.0.0"
+  }
+}
