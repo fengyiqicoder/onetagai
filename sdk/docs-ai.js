@@ -40,7 +40,7 @@
 // Every piece of interface lives in a shadow root, so the site's CSS and its own do not touch.
 (function () {
   "use strict";
-  const VERSION = "0.5.1";
+  const VERSION = "0.5.2";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -67,7 +67,7 @@
     vitepress: { content: [".vp-doc"], code: 'div[class*="language-"]', group: ".vp-code-group", file: "" },
     docusaurus: { content: [".theme-doc-markdown", "article .markdown"], code: ".theme-code-block", group: "", file: '[class*="codeBlockTitle"]' },
     starlight: { content: [".sl-markdown-content"], code: ".expressive-code", group: "", file: "figcaption .title" },
-    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: "" },
+    generic: { content: ["main article", "article", "main", '[role="main"]'], code: "pre", group: "", file: ".filename" },
   };
   // The search boxes the row knows, tried in this order. A site's search does not follow from
   // its content markup: Zensical writes Material's, and DocSearch sits on any framework.
@@ -661,7 +661,7 @@
     if (!pre) return null;
     const inner = pre.querySelector("code");
     const wrapper = pre.closest('[class*="language-"]');
-    const fileNode = preset().file ? unit.querySelector(preset().file) : null;
+    const fileNode = fileLabel(unit, preset().file);
     return {
       code: String(pre.innerText || pre.textContent || "").replace(/\s+$/, "").replace(/^\n+/, ""),
       lang: codeLang([pre.className, inner && inner.className, wrapper && wrapper.className].join(" "), pre.getAttribute("data-language")),
@@ -669,12 +669,23 @@
     };
   }
 
-  // The heading a block sits under and the text just before it.
-  function contextOf(unit, root) {
+  // The label with the file name: inside the theme's wrapper or, where the block is a bare
+  // <pre> (the generic preset on a page that wraps its code), right in front of it.
+  function fileLabel(unit, selector) {
+    if (!selector) return null;
+    const inside = unit.querySelector(selector);
+    if (inside) return inside;
+    const prev = unit.previousElementSibling;
+    return prev && prev.matches(selector) ? prev : null;
+  }
+
+  // The heading a block sits under and the text just before it. The block's own label is
+  // not that text.
+  function contextOf(unit, root, label) {
     let before = "";
     for (let n = unit; n && n !== root; n = n.parentElement) {
       for (let p = n.previousElementSibling; p; p = p.previousElementSibling) {
-        if (p.hasAttribute(NAME)) continue;
+        if (p.hasAttribute(NAME) || p === label) continue;
         if (/^H[1-6]$/.test(p.tagName)) return { heading: clean(p), before };
         const inside = p.querySelectorAll("h1,h2,h3,h4,h5,h6");
         if (inside.length) return { heading: clean(inside[inside.length - 1]), before };
@@ -716,7 +727,7 @@
       button.hidden = true;
       panel.hidden = false;
       host.setAttribute("data-open", "");
-      const ctx = contextOf(unit, root);
+      const ctx = contextOf(unit, root, fileLabel(unit, preset().file));
       const body = explainBody(config, activeKey(), { title: pageTitle(root), heading: ctx.heading, before: ctx.before, code: found.code, lang: found.lang, file: found.file }, answerLanguage());
       run(body, answer, status, S.readingCode, controller.signal);
     }
@@ -1091,7 +1102,7 @@
   win.onetagDocsAi = {
     version: VERSION,
     mount,
-    _internal: { readConfig, detectPreset, viaFor, searchQuery, searchAt, searchCame, arrowTo, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, SEARCHES, RULES, MAX_TEXT, DEMO_KEY },
+    _internal: { readConfig, detectPreset, viaFor, fileLabel, contextOf, searchQuery, searchAt, searchCame, arrowTo, codeSign, cacheKey, cacheRead, cacheWrite, homeUrl, worthMount, leftPage, codeLang, explainBody, summaryBody, selectionBody, buildBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, SEARCHES, RULES, MAX_TEXT, DEMO_KEY },
   };
 
   if (doc.body) start();

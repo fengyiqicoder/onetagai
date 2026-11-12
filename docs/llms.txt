@@ -54,7 +54,24 @@ extra_javascript:
   - https://onetagai.com/ask-docs.js?key=YOUR_ONETAG_KEY
 ```
 
-Nothing is crawled or hosted. When a reader asks, the browser reads the index the site already publishes, picks the matching sections (up to 20,000 characters) and sends them with the question. The index is found on its own: MkDocs `search/search_index.json`, a Pagefind index (`pagefind/`, as on Starlight or after `npx pagefind --site <dir>`), `llms-full.txt`, and with none of these the text of the current page. It is independent of `v1.js`, renders in a shadow root, puts its button in the header of Material for MkDocs and Docusaurus and floats it elsewhere, opens with Ctrl+/ or ⌘+/, and follows the page's language and light or dark background. Options are `data-*` attributes or query parameters on the script URL: `key`, `label`, `placeholder`, `position` (`auto` | `float` | `left` | `none`), `button` (CSS selector of your own opener), `color` (hex, without `#` in a URL), `theme`, `lang`, `rules` (replaces the instructions), `index` (address of the index), `ref`. From code: `onetagAskDocs.open()`, `.close()`, `.ask("question")`. Live example: https://fengyiqicoder.github.io/mkdocs-onetag/
+Nothing is crawled or hosted. When a reader asks, the browser reads the index the site already publishes, picks the matching sections (up to 20,000 characters) and sends them with the question. The index is found on its own: MkDocs `search/search_index.json`, Zensical `search.json`, a Pagefind index (`pagefind/`, as on Starlight or after `npx pagefind --site <dir>`), `llms-full.txt`, and with none of these the text of the current page. It is independent of `v1.js`, renders in a shadow root, puts its button in the header of Material for MkDocs and Docusaurus and floats it elsewhere, opens with Ctrl+/ or ⌘+/, and follows the page's language and light or dark background. Options are `data-*` attributes or query parameters on the script URL: `key`, `label`, `placeholder`, `position` (`auto` | `float` | `left` | `none`), `button` (CSS selector of your own opener), `color` (hex, without `#` in a URL), `theme`, `lang`, `rules` (replaces the instructions), `index` (address of the index), `ref`. From code: `onetagAskDocs.open()`, `.close()`, `.ask("question")`. Live example: https://fengyiqicoder.github.io/mkdocs-onetag/
+
+## Docs AI (documentation sites, no code)
+
+Reader tools for a static documentation site, each off until named in `features`: `explain` (an "Explain this code" button under every code block), `summary` (a "Summarize this page" button under the title of long pages), `selection` (select text, click "Ask AI", get it explained in the context of the page, with follow-ups), `search` (an `Ask AI: "<query>"` row above the site's own search results that hands the query to `ask-docs.js`):
+
+```html
+<script async src="https://onetagai.com/docs-ai.js" data-key="YOUR_ONETAG_KEY" data-features="explain,summary,selection"></script>
+```
+
+MkDocs, Material for MkDocs and Zensical, in `mkdocs.yml`:
+
+```yaml
+extra_javascript:
+  - https://onetagai.com/docs-ai.js?key=YOUR_ONETAG_KEY&features=explain,summary,selection
+```
+
+It finds content and code blocks in Material for MkDocs, Zensical, VitePress, Docusaurus and Starlight, else `<main>` and `<pre>`. Separate from `ask-docs.js` (whole-site answers) and usable alongside it; independent of `v1.js`; renders in a shadow root; about 18 KB gzipped. Nothing is sent until a reader clicks: the code block (up to 12,000 characters) or the selection, with the page around it, up to 32,000 characters. Answers are rendered as text, never HTML. Summaries are cached in the reader's browser (`cache=off` to disable). `search` shows its row once 2+ characters are typed; clicking it or pressing Enter closes the search and asks the query in the Ask Docs box. The row sends nothing itself; the answer counts as one Ask Docs question. It needs `ask-docs.js` on the same page and supports the search boxes of Material for MkDocs, Zensical, VitePress (local search) and Algolia DocSearch (Docusaurus, or VitePress with Algolia); Starlight's Pagefind box is not supported yet. Elsewhere it is not shown and the console says why once. In the last three the row sits above the first result (up arrow from the first result, then Enter). On VitePress and Docusaurus, Ask Docs needs `llms-full.txt` (vitepress-onetag writes one) or a Pagefind index, or search-row questions are answered from the current page only; Material and Zensical publish their own index. Without a key it answers on localhost from a shared demo key; on a deployed site it sends nothing and tells the reader AI is not set up. Options (`data-*` or URL query): `key`, `features` (`explain,summary,selection,search`), `lang` (answer language), `lines` (min code lines, default 1), `chars` (min page length for a summary, default 1500), `rules` (added to the built-in instructions), `preset` (`material` | `vitepress` | `docusaurus` | `starlight` | `generic`), `content` and `code` (CSS selectors), `color` (hex, without `#` in a URL), `ref`, `cache`, `endpoint`. From code: `onetagDocsAi.mount()` re-scans the page.
 
 ## API
 
@@ -134,6 +151,7 @@ Twelve copy-paste blocks (summarize this page, ask this page, FAQ bot, rewrite, 
 - Chatbot HTML templates (full-page chat, chat bubble, AI sidebar), each with a live demo: https://onetagai.com/chatbot-html-template
 - HTML chat box, responsive chat box code that answers with AI: https://onetagai.com/html-chat-box
 - AI chatbot examples: 8 working website chatbots with real conversations and code: https://onetagai.com/chatbot-examples
+- Chatbase alternative with a free plan: prices compared, what each does better, how to switch: https://onetagai.com/chatbase-alternative
 - Chatbot templates by industry: real estate, customer service, ecommerce, hotel, restaurant, insurance, HR, FAQ: https://onetagai.com/chatbot-examples/real-estate (and /customer-service, /ecommerce, /hotel, /restaurant, /insurance, /hr, /faq)
 - How to add AI to your website (chat, answers, translator, summaries, docs search) with one script tag: https://onetagai.com/guides/add-ai-to-website
 - React chatbot widget, two components (drop-in widget and chat box): https://onetagai.com/guides/react-chatbot-widget
@@ -154,4 +172,5 @@ Twelve copy-paste blocks (summarize this page, ask this page, FAQ bot, rewrite, 
 - Add a TL;DR summary button to blog posts: https://onetagai.com/guides/summarize-button
 - Website translator widget in JavaScript (a language menu that translates the page in place): https://onetagai.com/guides/translate-page
 - Is it safe to put an AI API key in a static HTML page? https://onetagai.com/guides/api-key-in-html
+- We read 20 top "chatbot in HTML" tutorials (2026-11-11): 11 have no AI, 5 put the API key in the page: https://onetagai.com/guides/chatbot-tutorials-checked
 - Ways to add AI to a static site, compared: https://onetagai.com/guides/compare

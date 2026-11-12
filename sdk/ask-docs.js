@@ -22,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.5";
+  const VERSION = "1.1.6";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -896,12 +896,7 @@
     // Keys typed in the box stay in the box. Themes listen on the document for one-letter
     // shortcuts ("s" opens search, "n" goes to the next page) and skip them only when the focus
     // is in a field, which they cannot tell here: from outside, the focus is on the host element.
-    for (const type of ["keydown", "keypress", "keyup"]) {
-      host.addEventListener(type, (e) => {
-        e.stopPropagation();
-        if (type === "keydown" && isToggle(e)) { e.preventDefault(); closeBox(); }
-      });
-    }
+    for (const type of ["keydown", "keypress", "keyup"]) host.addEventListener(type, (e) => e.stopPropagation());
     return { host, wrap, launcher, dialog, input, send, intro, question, status, answer, sources, reset };
   }
 
@@ -1102,9 +1097,14 @@
   function start() {
     hints = readHints();
     mount();
+    // Heard before the page's own listeners and kept from them: a theme that reads "/"
+    // whatever is held with it (MkDocs' built-in one) would open its shortcuts help as well.
     win.addEventListener("keydown", (e) => {
-      if (isToggle(e)) { e.preventDefault(); if (ui && ui.dialog.open) closeBox(); else open(); }
-    });
+      if (!isToggle(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (ui && ui.dialog.open) closeBox(); else open();
+    }, true);
     if (config.button) {
       doc.addEventListener("click", (e) => {
         let hit = null;

@@ -16,7 +16,7 @@ function load(dataset, scriptSrc, lang, hostname) {
   return ctx.onetagDocsAi;
 }
 const api = load({ key: "ot_test" }, "https://onetagai.com/docs-ai.js");
-const { readConfig, detectPreset, viaFor, codeLang, explainBody, summaryBody, selectionBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT } = api._internal;
+const { readConfig, detectPreset, viaFor, fileLabel, contextOf, codeLang, explainBody, summaryBody, selectionBody, parseSSE, blocksOf, cut, hash, pickLang, isLocal, languageName, PRESETS, STRINGS, RULES, MAX_TEXT } = api._internal;
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const size = (b) => b.prompt.length + b.system.length + (b.input || []).reduce((n, p) => n + p.text.length, 0) + (b.history || []).reduce((n, m) => n + m.content.length, 0);
 
@@ -452,4 +452,47 @@ test("arrowTo: the row sits between the search input and the first result for th
   assert.equal(arrowTo("Enter", "input", true), "");
   assert.equal(arrowTo("ArrowDown", "input", false), "");   // no row, nothing changes
   assert.equal(arrowTo("ArrowUp", "first", false), "");
+});
+
+// Just enough of an element for the walk from a code block up to its heading.
+function elem(tag, cls, kids) {
+  const n = { tagName: tag.toUpperCase(), cls: cls || "", parentElement: null, previousElementSibling: null, kids: [], text: "" };
+  for (const k of kids || []) {
+    if (typeof k === "string") { n.text += k; continue; }
+    k.parentElement = n;
+    k.previousElementSibling = n.kids[n.kids.length - 1] || null;
+    n.kids.push(k);
+  }
+  const all = (x) => x.kids.flatMap((k) => [k, ...all(k)]);
+  const is = (x, selector) => selector.split(",").some((s) => { s = s.trim(); return s[0] === "." ? x.cls.split(" ").includes(s.slice(1)) : x.tagName === s.toUpperCase(); });
+  Object.defineProperty(n, "textContent", { get: () => n.text + n.kids.map((k) => k.textContent).join("") });
+  n.hasAttribute = () => false;
+  n.matches = (selector) => is(n, selector);
+  n.querySelectorAll = (selector) => all(n).filter((x) => is(x, selector));
+  n.querySelector = (selector) => n.querySelectorAll(selector)[0] || null;
+  n.cloneNode = () => ({ querySelectorAll: () => [], textContent: n.textContent });
+  return n;
+}
+
+test("contextOf: a bare <pre> in a wrapper with a file name takes the paragraph before the wrapper, not the label", () => {
+  // What pymdownx.highlight writes for a block with title="…", read by the generic preset.
+  const label = elem("span", "filename", [".github/workflows/docs.yml"]);
+  const pre = elem("pre", "", ["on:\n  push:"]);
+  const root = elem("div", "", [
+    elem("h2", "", ["Explain this code"]),
+    elem("p", "", ["On a workflow:"]),
+    elem("div", "highlight", [label, pre]),
+  ]);
+  assert.equal(fileLabel(pre, PRESETS.generic.file), label);
+  assert.deepEqual(plain(contextOf(pre, root, label)), { heading: "Explain this code", before: "On a workflow:" });
+});
+
+test("fileLabel: found inside a theme's wrapper, and absent where the page has none", () => {
+  const label = elem("span", "filename", ["mkdocs.yml"]);
+  const wrapper = elem("div", "highlight", [label, elem("pre", "", ["site_name: x"])]);
+  assert.equal(fileLabel(wrapper, PRESETS.material.file), label);
+  const pre = elem("pre", "", ["plain"]);
+  elem("div", "", [elem("p", "", ["Run it:"]), pre]);
+  assert.equal(fileLabel(pre, PRESETS.generic.file), null);
+  assert.equal(fileLabel(pre, ""), null);
 });
