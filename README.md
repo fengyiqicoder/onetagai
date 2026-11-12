@@ -25,6 +25,7 @@ This repository holds the parts of OneTag AI you can link to or copy: the browse
 | `docs/llms.txt` | The whole API on one page, written for people and AI coding tools. | Paste it into your AI tool's context. |
 | `packages/onetag` | The same SDK as an npm package, with types: `import { ask } from "onetagai"`. | `npm install onetagai`. [README](packages/onetag/README.md). |
 | `packages/astro-onetag` | An Ask AI box for Astro sites: answers from the page, or from the whole site through Pagefind. | `npm install astro-onetag`, then `<AskAI />`. [README](packages/astro-onetag/README.md). |
+| `packages/docusaurus-onetag` | A Docusaurus plugin: writes `llms.txt` and `llms-full.txt` at build time, adds an Ask AI box that answers from the whole site, and, when `features` names them, the Docs AI reader tools. | `npm install docusaurus-onetag`, then one line in `plugins`. [README](packages/docusaurus-onetag/README.md). |
 
 For Starlight docs there is [starlight-onetag](https://github.com/fengyiqicoder/starlight-onetag), a plugin that adds Ask AI next to the search box. The npm packages answer on localhost without a key, on a shared demo key; a deployed site needs its own.
 
