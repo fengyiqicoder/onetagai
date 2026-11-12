@@ -22,7 +22,7 @@
 // lives in a shadow root, so the site's CSS and its own do not touch. It does not need v1.js.
 (function () {
   "use strict";
-  const VERSION = "1.1.6";
+  const VERSION = "1.1.7";
   const HOME = "https://onetagai.com";
   const DEMO_KEY = "ot_demo000000000000000000000";  // answers on localhost only
   const MAX_TEXT = 32000;        // the server's limit on prompt + system + history + input
@@ -298,13 +298,26 @@
     return entries.map((e) => ({ url: e.url, title: e.title, text: e.text }));
   }
 
+  // An address written in llms-full.txt, as a link. "/guide" in a file found under
+  // https://u.github.io/project/ is a page of that project, not of u.github.io.
+  function pageUrl(href, base) {
+    try {
+      const b = new URL(base);
+      const folder = b.pathname.replace(/[^/]*$/, "");
+      if (/^\/(?!\/)/.test(href) && folder !== "/" && !(href + "/").startsWith(folder)) return new URL(folder + href.slice(1), b).href;
+      return new URL(href, b).href;
+    } catch (e) { return /^https?:\/\//.test(href) ? href : ""; }
+  }
+
   // llms-full.txt → entries: one per "# " or "## " heading outside code fences, long ones
   // split at paragraph breaks. A "Source: https://…" or "URL: …" line right under a heading
-  // becomes the link; without one the entry has a title only.
-  function llmsEntries(text, max) {
+  // becomes the link. Fumadocs writes the address in the heading instead, "# Title (/docs/page)",
+  // and the anchor of a section as "## Section [#anchor]": such a section links to its place
+  // on that page. Without either the entry has a title only.
+  function llmsEntries(text, max, base) {
     const size = max || 6000;
     const entries = [];
-    let h1 = "", cur = null, fenced = false;
+    let h1 = "", page = "", cur = null, fenced = false;
     const flush = () => {
       if (!cur) return;
       const body = cur.lines.join("\n").trim();
@@ -325,14 +338,23 @@
       const h = fenced ? null : /^(#{1,2})\s+(.+?)\s*#*$/.exec(line);
       if (h) {
         flush();
-        if (h[1].length === 1) h1 = h[2];
-        cur = { title: h[1].length === 1 || !h1 ? h[2] : h1 + " › " + h[2], url: "", lines: [], fresh: 0 };
+        let title = h[2], url = "";
+        const anchor = /\s*\[#([^\]\s]+)\]$/.exec(title);
+        if (anchor) title = title.slice(0, anchor.index);
+        if (h[1].length === 1) {
+          const at = /^(.*\S)\s+\((\/[^\s()]*|https?:\/\/[^\s()]+)\)$/.exec(title);
+          if (at) title = at[1];
+          h1 = title;
+          page = url = at ? pageUrl(at[2], base) : "";
+        } else if (page) url = page.split("#")[0] + (anchor ? "#" + anchor[1] : "");
+        // `named`: the address came from the heading, and a Source line under it still wins.
+        cur = { title: h[1].length === 1 || !h1 ? title : h1 + " › " + title, url, named: !!url, lines: [], fresh: 0 };
         continue;
       }
       if (!cur) cur = { title: h1 || "", url: "", lines: [], fresh: 0 };
-      if (!cur.url && cur.fresh < 4) {
+      if ((!cur.url || cur.named) && cur.fresh < 4) {
         const m = /^\s*(?:source|url|link)\s*:\s*(https?:\/\/\S+)/i.exec(line);
-        if (m) { cur.url = m[1]; continue; }
+        if (m) { cur.url = m[1]; cur.named = false; continue; }
         if (line.trim()) cur.fresh++;
       }
       cur.lines.push(line);
@@ -570,8 +592,13 @@
     const text = await r.text();
     // A host that answers every unknown address with its home page is not an llms-full.txt.
     if (/html/i.test(type) || /^\s*<(!doctype|html)/i.test(text) || text.trim().length < 200) throw new Error("not llms-full.txt");
-    if (text.length <= MAX_CONTEXT) return { kind: "llms", base, whole: true, search: async () => [{ url: "", title: "", text, whole: true }] };
-    return localSearch("llms", base, llmsEntries(text));
+    if (text.length <= MAX_CONTEXT) {
+      // A small site is sent whole. The pages that match the question are still found, to be
+      // named under the answer.
+      const index = makeIndex(llmsEntries(text, 0, base));
+      return { kind: "llms", base, whole: true, search: async (terms) => [{ url: "", title: "", text, whole: true, near: terms && terms.length ? index.search(terms, TOP) : [] }] };
+    }
+    return localSearch("llms", base, llmsEntries(text, 0, base));
   }
 
   async function probePagefind(base) {
@@ -722,7 +749,7 @@
       if (again.length || foreign) hits = await index.search(terms);
     }
     if (!hits.length) return here();
-    if (hits[0].whole) return { kind: index.kind, base: index.base, sources: [], pages: [{ title: "All pages of this site", url: "", text: hits[0].text }] };
+    if (hits[0].whole) return { kind: index.kind, base: index.base, sources: sourcesOf(hits[0].near || []).filter((s) => s.url), pages: [{ title: "All pages of this site", url: "", text: hits[0].text }] };
     const pages = toPages(hits, terms, MAX_CONTEXT);
     return { kind: index.kind, base: index.base, pages, sources: sourcesOf(pages).filter((s) => s.url) };
   }
@@ -1088,7 +1115,7 @@
     open,
     close: closeBox,
     ask,            // ask("How do I deploy?") opens the box and answers; ask(q, { from: "search" }) also says where it came from
-    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, loadMkdocs, llmsEntries, ancestors, toPages, sourcesOf, buildBody, viaFrom, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
+    _internal: { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, loadMkdocs, loadLlms, llmsEntries, pageUrl, ancestors, toPages, sourcesOf, buildBody, viaFrom, parseSSE, parseAnswer, withIntros, readSaved, isDark, placementIn, STRINGS, RULES, DEMO_KEY },
   };
 
   // Ctrl+/ or ⌘+/ opens and closes the box.

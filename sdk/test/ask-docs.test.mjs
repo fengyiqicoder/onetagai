@@ -16,7 +16,7 @@ function load(dataset, scriptSrc, lang, hostname) {
   return ctx.onetagAskDocs;
 }
 const api = load({ key: "ot_test" }, "https://onetagai.com/ask-docs.js");
-const { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, llmsEntries, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, STRINGS, RULES } = api._internal;
+const { readConfig, pickLang, isLocal, cut, stripHtml, stem, queryTerms, count, makeIndex, focus, mkdocsEntries, llmsEntries, pageUrl, ancestors, toPages, sourcesOf, buildBody, parseSSE, parseAnswer, withIntros, readSaved, STRINGS, RULES } = api._internal;
 const local = (v) => JSON.parse(JSON.stringify(v));
 const words = (q) => local(queryTerms(q)).map((t) => t.t);
 
@@ -216,6 +216,82 @@ test("llmsEntries: one entry per heading, links from a Source line, fences left 
   const long = "# Big\n" + ("word ".repeat(100) + "\n\n").repeat(30);
   const parts = llmsEntries(long, 2000);
   assert.ok(parts.length > 1 && parts.every((p) => p.text.length <= 2000 && p.title === "Big"));
+});
+
+// What `npx @fumadocs/cli feature llms` writes (fumadocs-core 16): the address in the page's
+// heading, the anchor in the section's, and no Source line.
+const FUMADOCS = [
+  "# Deploying (/docs/deploy)", "", "How to put the site online.", "",
+  "## Build [#build]", "", "Run `npm run build`. The site is written to `out/`.", "",
+  "## Preview a build [#preview-a-build]", "", "Run `npx serve out`.", "",
+  "# Hello World (/docs)", "", "Welcome to the docs.", "",
+  "## What is Next? [#what-is-next]", "", "Read the installation page.", "",
+  "# Components (https://other.test/docs/components)", "", "## Cards", "", "Cards link to pages.",
+].join("\n");
+
+test("llmsEntries: Fumadocs writes the address in the heading and the anchor in the section's", () => {
+  assert.deepEqual(local(llmsEntries(FUMADOCS, 0, "https://d.test/")), [
+    { url: "https://d.test/docs/deploy", title: "Deploying", text: "How to put the site online." },
+    { url: "https://d.test/docs/deploy#build", title: "Deploying › Build", text: "Run `npm run build`. The site is written to `out/`." },
+    { url: "https://d.test/docs/deploy#preview-a-build", title: "Deploying › Preview a build", text: "Run `npx serve out`." },
+    { url: "https://d.test/docs", title: "Hello World", text: "Welcome to the docs." },
+    { url: "https://d.test/docs#what-is-next", title: "Hello World › What is Next?", text: "Read the installation page." },
+    { url: "https://other.test/docs/components", title: "Components › Cards", text: "Cards link to pages." },
+  ]);
+});
+
+test("llmsEntries: a heading's address is one only when it starts with / or http, and a Source line wins", () => {
+  const text = [
+    "# Limits (beta)", "Ten a day.", "",
+    "# Paths (/guide/paths)", "Source: https://d.test/real/", "", "Where files go.", "",
+    "## Anchored [#here]", "Source: https://d.test/real/#there", "Text.", "",
+    "# Plain [#top]", "No address, so no link.", "",
+    "## Section [#part]", "Still none.",
+  ].join("\n");
+  assert.deepEqual(local(llmsEntries(text, 0, "https://d.test/")), [
+    { url: "", title: "Limits (beta)", text: "Ten a day." },
+    { url: "https://d.test/real/", title: "Paths", text: "Where files go." },
+    { url: "https://d.test/real/#there", title: "Paths › Anchored", text: "Text." },
+    { url: "", title: "Plain", text: "No address, so no link." },
+    { url: "", title: "Plain › Section", text: "Still none." },
+  ]);
+  // No address to read the path against: a full URL is kept, a path gives no link.
+  assert.deepEqual(local(llmsEntries("# A (/a)\nText.\n\n# B (https://d.test/b)\nText.")).map((e) => e.url), ["", "https://d.test/b"]);
+});
+
+test("pageUrl: a path from the root belongs to the folder the file was found in", () => {
+  assert.equal(pageUrl("/docs/deploy", "https://d.test/"), "https://d.test/docs/deploy");
+  assert.equal(pageUrl("/docs/deploy", "https://u.github.io/project/"), "https://u.github.io/project/docs/deploy");
+  assert.equal(pageUrl("/project/docs/deploy", "https://u.github.io/project/"), "https://u.github.io/project/docs/deploy");
+  assert.equal(pageUrl("/project", "https://u.github.io/project/"), "https://u.github.io/project");
+  assert.equal(pageUrl("https://other.test/x", "https://u.github.io/project/"), "https://other.test/x");
+  assert.equal(pageUrl("/a", undefined), "");
+});
+
+function withText(files) {
+  const ctx = {
+    document: { currentScript: { dataset: { key: "ot_test" }, src: "https://onetagai.com/ask-docs.js" }, body: null, documentElement: { lang: "en" }, addEventListener() {} },
+    location: { hostname: "d.test", href: "https://d.test/docs" },
+    console: { warn() {} }, URL, TextDecoder,
+    fetch: async (url) => (url in files ? { ok: true, headers: { get: () => "text/plain" }, text: async () => files[url] } : { ok: false, status: 404 }),
+  };
+  ctx.window = ctx; vm.createContext(ctx); vm.runInContext(src, ctx);
+  return ctx.onetagAskDocs._internal;
+}
+
+test("loadLlms: a small site is sent whole, and the pages that match the question are still named", async () => {
+  const { loadLlms, queryTerms: terms, sourcesOf: sources } = withText({ "https://d.test/llms-full.txt": FUMADOCS });
+  const index = await loadLlms("https://d.test/");
+  assert.equal(index.whole, true);
+  const hits = await index.search(terms("how do I preview a build"));
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].text, FUMADOCS);
+  assert.deepEqual(local(sources(hits[0].near)).slice(0, 1), [{ title: "Deploying › Preview a build", url: "https://d.test/docs/deploy#preview-a-build" }]);
+  assert.deepEqual(local((await index.search([]))[0].near), []);
+  // A file without addresses names nothing.
+  const bare = withText({ "https://d.test/llms-full.txt": "# Install\n\n" + "Run the installer and wait. ".repeat(10) });
+  const none = (await (await bare.loadLlms("https://d.test/")).search(bare.queryTerms("installer")))[0];
+  assert.deepEqual(local(bare.sourcesOf(none.near).filter((x) => x.url)), []);
 });
 
 test("ancestors: nearest folder first, up to the root", () => {
